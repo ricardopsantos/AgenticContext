@@ -1,10 +1,16 @@
 # `.agentic_context` — agent context system
 
-A small, portable scaffold that gives an AI coding agent (Claude Code) durable,
+A small, portable scaffold that gives a terminal AI coding agent durable,
 self-maintaining context for a large, long-running project. Plain markdown and
 three shell scripts — no database, no embeddings, no plugins. Only the folder
 *contents* and the `INDEX.md` files change per project; everything else (the
 `SKILL.md` skeletons, the scripts, the main prompt) travels unchanged.
+
+**Agent-agnostic by construction.** Nothing here calls a model API or depends
+on a vendor SDK: it's markdown your agent reads and shell scripts it runs. If
+your tool can read files and run commands, it works — Claude Code, GitHub
+Copilot CLI, Codex CLI, Gemini CLI, Cursor, Aider, or whatever replaces them.
+See [Using it with any agent](#using-it-with-any-agent).
 
 ---
 
@@ -13,27 +19,38 @@ three shell scripts — no database, no embeddings, no plugins. Only the folder
 From your project root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ricardopsantos/AgenticMemory/main/install-claude-science.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ricardopsantos/AgenticContext/main/Auxiliar/install.sh | bash
 ```
 
-Needs only `curl` and `tar`. It creates `.agentic_context/` (skeleton, scripts,
-meta-skills, dummy example docs marked "delete me"), points the bootstrap
-prompt's `Root:` path at your project, installs the `/enrich-prompt` wrapper
-for Claude Code, then builds the indexes and validates the install. It refuses
-to overwrite an existing install; options:
+Needs only `curl` and `tar`. It creates the context folder (skeleton, scripts,
+meta-skills, dummy example docs marked "delete me"), then builds the indexes and
+validates the install. It refuses to overwrite an existing install. If you use
+Claude Code it also drops in the `/enrich-prompt` slash-command wrapper; other
+agents ignore it.
+
+**The folder name is yours.** It defaults to `.agentic_context`, and on a
+terminal the installer asks for the name and whether to hide it. Or pass flags:
 
 ```bash
-curl -fsSL <same-url> | bash -s -- /path/to/project --force
+curl -fsSL <same-url> | bash -s -- /path/to/project [options]
+
+  --dir <name>   context folder name, used verbatim (default: .agentic_context)
+  --visible      drop the leading dot, so the folder isn't hidden
+  --force        overwrite an existing install
+  --yes          never ask; take the defaults
 ```
 
-To install from a local clone instead: `./install-claude-science.sh`, or the
-offline `./install.sh <target-dir>`.
+`curl | bash` hands the script its own stdin, so the questions are read from
+`/dev/tty`; with no terminal (CI, redirected stdin) it takes the defaults
+rather than hanging.
 
-**Read the story:** the design and its evolution are written up in
-[`Articles/`](Articles/) (Part 1: the derived index; Part 2: the hardened
-safety net, auto-promotion, semantic staleness, and real token numbers), with
-a short version in [`Auxiliar/TLDR.md`](Auxiliar/TLDR.md) and the measurements
-in [`Auxiliar/TOKEN_STUDY.md`](Auxiliar/TOKEN_STUDY.md).
+Nothing gets patched to match your choice, because **the prompt identifies its
+root by what the folder *contains* (`scripts/rebuild-index.sh` + `KNOWLEDGE/`),
+not by what it's called.** `.agentic_context`, `agentic_context`, `brain`,
+`notes` all work, and you can rename the folder later without editing anything.
+
+To install from a local clone instead: `./Auxiliar/install-local.sh <target-dir>`
+(same options).
 
 ---
 
@@ -154,24 +171,73 @@ it; deleting it silently re-confirms everything.
 
 ## How a session runs (see `MAIN_PROMPT.md`)
 
-Paste `MAIN_PROMPT.md` at the start of a Claude Code session. It is
+Paste `MAIN_PROMPT.md` at the start of an agent session. It is
 **bootstrap + load order only** — it says *when* to read things; what each folder
 *is* lives in that folder's `SKILL.md`. Flow:
 
+0. Discover `<root>` — walk up from the working directory and match each
+   ancestor's child folders on *contents*, not name. Nothing is hardcoded and
+   nothing is patched at install time, so the prompt is machine-, project- and
+   name-independent: paste the same text anywhere, call the folder anything.
 1. Read the rules (`AGENTS.md`).
-2. `tree` the workspace — names, not contents.
-3. Self-heal: run `rebuild-index.sh`, then `validate.sh` (full check).
-4. Load policy: read the three small indexes; always-load `[CORE]`; everything
+2. Self-heal: run `rebuild-index.sh`, then `validate.sh` (full check).
+3. Load policy: read the three small indexes; always-load `[CORE]`; everything
    else lazy on summary match.
+4. Orient in the project only if a task needs it — scoped and shallow, not a
+   full workspace map at init.
 5. Per task: check MEMORY before; after, write qualifying findings, append the
    task's domain to any finding's `**Used in:**` line that answered, rebuild.
-6. Drift check: if anything disagrees with `tree`, trust disk and rebuild.
+6. On close: if the session did real work, run `SKILLS/meta/session-debrief`.
+
+There is no drift-check step, by design: step 2 rebuilds the indexes from disk
+before anything reads them, so an index *cannot* disagree with the tree. A
+check for a state the design makes unreachable is dead weight in a prompt
+that's pasted every session.
+
+---
+
+## Using it with any agent
+
+The framework needs exactly two capabilities: **read a file** and **run a shell
+command**. There is no API call, no SDK, no plugin — so any terminal agent can
+drive it, and switching tools costs nothing because the context lives in your
+repo, not in a vendor's memory feature.
+
+Two things are conventionally tool-specific, and both are one line to adapt:
+
+**1. The rules file.** `AGENTS.md` is the single source of rules and is already
+the cross-tool convention (Codex, Copilot and Cursor read it). Each agent
+auto-loads its own filename, so point that filename at `AGENTS.md` rather than
+copying rules into it — two copies drift, which is the exact failure this whole
+design exists to prevent. `CLAUDE.md` ships doing precisely that; its entire
+contents are:
+
+```
+Check `AGENTS.md`
+```
+
+Add the equivalent for your tool (`.github/copilot-instructions.md`,
+`GEMINI.md`, `.cursor/rules/`, `CONVENTIONS.md`, …). And note that step 1 of
+`MAIN_PROMPT.md` tells the agent to read `AGENTS.md` outright, so even a tool
+with no auto-load convention picks up the rules.
+
+**2. The `/enrich-prompt` shortcut** is a Claude Code slash command, and the
+only genuinely Claude-only artifact here. It's a thin wrapper holding no logic:
+the procedure lives in `SKILLS/meta/improve-prompt/`. On any other agent, say
+"follow `SKILLS/meta/improve-prompt` with this prompt" — same result, one more
+sentence.
+
+Everything else — the three folders, the derived `INDEX.md` files, the
+`> summary:` contract, the scripts, promotion, the debrief — is plain markdown
+and bash.
 
 **Division of labor:** rules that describe a folder's own mechanics live in its
 `SKILL.md` (they travel with the folder); rules about session orchestration live
-in the main prompt (it's what actually runs each session). Definitions are
-written *once* — duplicating them across prompt and SKILL.md just creates a
-second copy to keep in sync.
+in the main prompt (it's what actually runs each session). Anything long enough
+to have a procedure — the debrief, the summary reconciliation — is a skill the
+prompt *points at*, not text the prompt carries. Definitions are written
+*once*: duplicating them across prompt and SKILL.md just creates a second copy
+to keep in sync.
 
 ---
 
@@ -196,11 +262,17 @@ project:
 - **`improve-prompt`** — turn a raw prompt into an enriched one: rewrite for
   clarity, match it against the three indexes, inline what fits a ~4k-token
   budget (bigger matches become load instructions), show the result, execute
-  only on confirmation. A thin `/enrich-prompt` wrapper in `.claude/skills/`
-  invokes it; all logic stays here so it travels with the folder.
+  only on confirmation. Any agent can run it — just say "follow
+  `SKILLS/meta/improve-prompt`". Claude Code users get a thin `/enrich-prompt`
+  wrapper in `.claude/skills/` as a shortcut; all logic stays here, so the
+  skill travels with the folder and the wrapper holds nothing.
 - **`reconcile-summaries`** — the judgment pass that resolves `UNCONFIRMED
   summary` warnings from `validate.sh`: re-read each flagged doc, rewrite the
   summary or confirm it via `confirm-summary.sh`.
+- **`session-debrief`** — the end-of-session retrospective: six fixed questions
+  (least-confident, what the user is missing, the insight they didn't ask to
+  store, future fragility, an unrequested feature, prompting efficiency), saved
+  as a finding under `MEMORY/session-final/`.
 
 ---
 
