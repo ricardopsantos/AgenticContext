@@ -1,0 +1,116 @@
+<svg viewBox="0 0 940 700" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <rect width="940" height="700" fill="#ffffff"/>
+  <text x="470" y="26" text-anchor="middle" font-size="18" font-weight="bold" fill="#1a1a1a">Finding &amp; doc lifecycle — states</text>
+  <text x="470" y="44" text-anchor="middle" font-size="11" fill="#666">STALE and UNCONFIRMED sit in the overlap — both apply to MEMORY findings and KNOWLEDGE docs alike</text>
+
+  <!-- legend -->
+  <g font-size="9.5" fill="#555">
+    <line x1="800" y1="16" x2="828" y2="16" stroke="#333" stroke-width="1.5" marker-end="url(#call)"/>
+    <text x="833" y="19">deliberate action</text>
+    <line x1="800" y1="30" x2="828" y2="30" stroke="#777" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ret)"/>
+    <text x="833" y="33">automatic / passive</text>
+  </g>
+
+  <defs>
+    <marker id="call" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#333"/>
+    </marker>
+    <marker id="ret" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#777"/>
+    </marker>
+  </defs>
+
+  <!-- Venn circles -->
+  <circle cx="300" cy="380" r="240" fill="#b5620a" fill-opacity="0.07" stroke="#b5620a" stroke-opacity="0.55" stroke-width="2"/>
+  <circle cx="600" cy="380" r="240" fill="#1a56db" fill-opacity="0.07" stroke="#1a56db" stroke-opacity="0.55" stroke-width="2"/>
+
+  <text x="160" y="175" text-anchor="middle" font-size="12" font-weight="bold" fill="#8a4a00">MEMORY — findings</text>
+  <text x="740" y="175" text-anchor="middle" font-size="12" font-weight="bold" fill="#123f9e">KNOWLEDGE — reference</text>
+  <text x="450" y="178" text-anchor="middle" font-size="9" font-style="italic" fill="#555">applies to both</text>
+
+  <!-- start -->
+  <circle cx="40" cy="227" r="6" fill="#000"/>
+  <line x1="46" y1="227" x2="90" y2="227" stroke="#333" stroke-width="1.3" marker-end="url(#call)"/>
+  <text x="8" y="212" text-anchor="start" font-size="8.5" fill="#333">write finding</text>
+
+  <!-- MEMORY active -->
+  <rect x="90" y="195" width="160" height="65" rx="8" fill="#fff8f0" stroke="#f3d9ae" stroke-width="1.5"/>
+  <text x="170" y="222" text-anchor="middle" font-size="12" font-weight="bold" fill="#b5620a">MEMORY</text>
+  <text x="170" y="238" text-anchor="middle" font-size="8.5" fill="#8a5a00">a new finding</text>
+  <text x="170" y="250" text-anchor="middle" font-size="7.5" fill="#8a5a00">written at discovery</text>
+
+  <!-- MEMORY -> PROMOTE? -->
+  <line x1="170" y1="260" x2="170" y2="280" stroke="#333" stroke-width="1.3" marker-end="url(#call)"/>
+  <text x="270" y="258" text-anchor="middle" font-size="8.5" fill="#333">flag: [PROMOTE?] by hand,</text>
+  <text x="270" y="270" text-anchor="middle" font-size="8.5" fill="#333">or auto — Used in: ≥ 3 domains</text>
+
+  <!-- PROMOTE? -->
+  <rect x="90" y="280" width="160" height="65" rx="8" fill="#faf5ff" stroke="#ddc6fb" stroke-width="1.5"/>
+  <text x="170" y="307" text-anchor="middle" font-size="12" font-weight="bold" fill="#7e3ff2">[PROMOTE?]</text>
+  <text x="170" y="323" text-anchor="middle" font-size="8.5" fill="#5b2bb5">candidate</text>
+  <text x="170" y="335" text-anchor="middle" font-size="7.5" fill="#5b2bb5">flag lives in the index</text>
+
+  <!-- decline loop -->
+  <path d="M 90 312 L 68 312 L 68 227 L 90 227" stroke="#777" stroke-width="1.3" stroke-dasharray="4 3" fill="none" marker-end="url(#ret)"/>
+  <rect x="20" y="263" width="46" height="14" fill="#fffaf2"/>
+  <text x="43" y="273" text-anchor="middle" font-size="7.5" fill="#666">declines</text>
+
+  <!-- KNOWLEDGE active + CORE -->
+  <rect x="610" y="195" width="260" height="110" rx="8" fill="#f5f8ff" stroke="#c7d9fb" stroke-width="1.5"/>
+  <text x="740" y="220" text-anchor="middle" font-size="12" font-weight="bold" fill="#1a56db">KNOWLEDGE</text>
+  <text x="740" y="236" text-anchor="middle" font-size="8.5" fill="#123f9e">lazy-loaded reference</text>
+  <rect x="630" y="250" width="220" height="44" rx="6" fill="#e8f0fe" stroke="#1a56db" stroke-width="1.2" stroke-dasharray="3 2"/>
+  <text x="740" y="266" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#1a56db">[CORE] subset</text>
+  <text x="740" y="279" text-anchor="middle" font-size="7.5" fill="#1a56db">hand-tagged, always-loaded — keep it tiny</text>
+
+  <!-- shared: STALE -->
+  <rect x="385" y="230" width="150" height="85" rx="8" fill="#f0f0f0" stroke="#999" stroke-width="1.5"/>
+  <rect x="391" y="236" width="138" height="73" rx="5" fill="none" stroke="#999" stroke-width="1"/>
+  <text x="460" y="258" text-anchor="middle" font-size="12" font-weight="bold" fill="#555">STALE</text>
+  <text x="460" y="273" text-anchor="middle" font-size="8" fill="#666">superseded / retired</text>
+  <text x="460" y="286" text-anchor="middle" font-size="7" fill="#777">never deleted — kept in a tail,</text>
+  <text x="460" y="297" text-anchor="middle" font-size="7" fill="#777">still on disk, still auditable</text>
+
+  <!-- shared: UNCONFIRMED -->
+  <rect x="385" y="420" width="150" height="95" rx="8" fill="#fff3f3" stroke="#e05252" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <text x="460" y="448" text-anchor="middle" font-size="12" font-weight="bold" fill="#c0392b">UNCONFIRMED</text>
+  <text x="460" y="464" text-anchor="middle" font-size="8" fill="#a93226">summary may drift from body</text>
+  <text x="460" y="477" text-anchor="middle" font-size="7" fill="#a93226">a validate.sh warning, not an error</text>
+  <text x="460" y="489" text-anchor="middle" font-size="7" fill="#a93226">exit 0 — resolved by a human re-read</text>
+
+  <!-- MEMORY -> STALE -->
+  <line x1="250" y1="215" x2="385" y2="255" stroke="#333" stroke-width="1.3" marker-end="url(#call)"/>
+  <text x="317" y="200" text-anchor="middle" font-size="8" fill="#333">superseded, or</text>
+  <text x="317" y="211" text-anchor="middle" font-size="8" fill="#333">already in KNOWLEDGE</text>
+
+  <!-- MEMORY -> UNCONFIRMED -->
+  <line x1="250" y1="255" x2="385" y2="450" stroke="#777" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ret)"/>
+  <text x="300" y="345" text-anchor="middle" font-size="8" fill="#666">body edited later,</text>
+  <text x="300" y="356" text-anchor="middle" font-size="8" fill="#666">summary untouched</text>
+
+  <!-- return: UNCONFIRMED -> MEMORY -->
+  <path d="M 385 470 Q 280 430 246 265" stroke="#777" stroke-width="1.3" stroke-dasharray="4 3" fill="none" marker-end="url(#ret)"/>
+  <text x="255" y="410" text-anchor="middle" font-size="8" fill="#666">confirm / rewrite</text>
+  <text x="255" y="421" text-anchor="middle" font-size="8" fill="#666">→ back</text>
+
+  <!-- KNOWLEDGE -> STALE -->
+  <line x1="610" y1="260" x2="535" y2="270" stroke="#333" stroke-width="1.3" marker-end="url(#call)"/>
+  <text x="572" y="240" text-anchor="middle" font-size="8" fill="#333">folded into</text>
+  <text x="572" y="251" text-anchor="middle" font-size="8" fill="#333">existing doc</text>
+
+  <!-- KNOWLEDGE -> UNCONFIRMED -->
+  <line x1="650" y1="305" x2="535" y2="455" stroke="#777" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ret)"/>
+  <text x="623" y="368" text-anchor="middle" font-size="8" fill="#666">body drifts</text>
+
+  <!-- return: UNCONFIRMED -> KNOWLEDGE -->
+  <path d="M 535 480 Q 620 440 655 315" stroke="#777" stroke-width="1.3" stroke-dasharray="4 3" fill="none" marker-end="url(#ret)"/>
+  <text x="618" y="405" text-anchor="middle" font-size="8" fill="#666">confirm / rewrite</text>
+  <text x="618" y="416" text-anchor="middle" font-size="8" fill="#666">→ back</text>
+
+  <!-- promotion: the one cross-lobe arrow, arcing under the Venn -->
+  <path d="M 170 345 C 170 590, 740 590, 740 305" stroke="#1a1a1a" stroke-width="1.8" fill="none" marker-end="url(#call)"/>
+  <text x="455" y="608" text-anchor="middle" font-size="10" font-weight="bold" fill="#1a1a1a">human approves — the only move that crosses MEMORY → KNOWLEDGE</text>
+
+  <text x="470" y="655" text-anchor="middle" font-size="10.5" fill="#888">Two lobes, one shared middle: MEMORY-only and KNOWLEDGE-only states never touch except through promotion.</text>
+  <text x="470" y="673" text-anchor="middle" font-size="10.5" fill="#888">Full detail: TLDR.md · README.md § Glossary · github.com/ricardopsantos/AgenticContext</text>
+</svg>

@@ -1,0 +1,108 @@
+<svg viewBox="0 0 1040 720" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1040" height="720" fill="#ffffff"/>
+  <text x="520" y="26" text-anchor="middle" font-size="18" font-weight="bold" fill="#1a1a1a">What loads at session start</text>
+  <text x="520" y="44" text-anchor="middle" font-size="11" fill="#666">a flat ~6,500 tokens, no matter how much the folder holds</text>
+
+  <defs>
+    <marker id="ret" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#777"/>
+    </marker>
+  </defs>
+
+  <!-- LEFT: loaded now -->
+  <rect x="30" y="80" width="440" height="580" rx="10" fill="#f5f8ff" stroke="#1a56db" stroke-width="2"/>
+  <rect x="30" y="80" width="440" height="28" rx="10" fill="#1a56db"/>
+  <rect x="30" y="94" width="440" height="14" fill="#1a56db"/>
+  <text x="250" y="99" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">LOADED AT SESSION START — ~6,500 tokens, every session</text>
+
+  <!-- rules + prompt -->
+  <rect x="46" y="120" width="408" height="46" rx="6" fill="#ffffff" stroke="#c7d9fb" stroke-width="1.3"/>
+  <text x="58" y="138" font-size="10.5" font-weight="bold" fill="#1a56db">AGENTS.md — the rules</text>
+  <text x="58" y="153" font-size="9" fill="#555">read in full, step 1 of every session (~500 tok)</text>
+
+  <rect x="46" y="174" width="408" height="46" rx="6" fill="#ffffff" stroke="#c7d9fb" stroke-width="1.3"/>
+  <text x="58" y="192" font-size="10.5" font-weight="bold" fill="#1a56db">MAIN_PROMPT.md — the bootstrap</text>
+  <text x="58" y="207" font-size="9" fill="#555">what you paste to start (~600 tok)</text>
+
+  <!-- three indexes -->
+  <text x="46" y="240" font-size="10" font-weight="bold" fill="#7e3ff2">the three INDEX.md files — names + one-line summaries only</text>
+
+  <rect x="46" y="248" width="408" height="40" rx="6" fill="#faf5ff" stroke="#ddc6fb" stroke-width="1.3"/>
+  <text x="58" y="264" font-size="10" fill="#333">KNOWLEDGE/INDEX.md</text>
+  <text x="58" y="278" font-size="8.5" fill="#666">every doc's title + summary + [CORE]/[PROMOTE?] tags (~1.2k tok)</text>
+
+  <rect x="46" y="294" width="408" height="40" rx="6" fill="#faf5ff" stroke="#ddc6fb" stroke-width="1.3"/>
+  <text x="58" y="310" font-size="10" fill="#333">MEMORY/INDEX.md</text>
+  <text x="58" y="324" font-size="8.5" fill="#666">names only — not consulted yet, just known to exist (~800 tok)</text>
+
+  <rect x="46" y="340" width="408" height="40" rx="6" fill="#faf5ff" stroke="#ddc6fb" stroke-width="1.3"/>
+  <text x="58" y="356" font-size="10" fill="#333">SKILLS/INDEX.md</text>
+  <text x="58" y="370" font-size="8.5" fill="#666">names only — loaded on match, like MEMORY (~400 tok)</text>
+
+  <!-- CORE docs, opened in full -->
+  <text x="46" y="404" font-size="10" font-weight="bold" fill="#1a56db">[CORE] KNOWLEDGE docs — opened in full, not just indexed</text>
+
+  <rect x="46" y="412" width="196" height="90" rx="6" fill="#e8f0fe" stroke="#1a56db" stroke-width="1.5"/>
+  <text x="58" y="430" font-size="10" font-weight="bold" fill="#123f9e">[CORE] doc A</text>
+  <text x="58" y="446" font-size="8.5" fill="#333">e.g. the product map,</text>
+  <text x="58" y="460" font-size="8.5" fill="#333">read whole (~1.1k tok)</text>
+  <text x="58" y="478" font-size="8" font-style="italic" fill="#666">keep this set tiny —</text>
+  <text x="58" y="490" font-size="8" font-style="italic" fill="#666">it's unconditional cost</text>
+
+  <rect x="258" y="412" width="196" height="90" rx="6" fill="#e8f0fe" stroke="#1a56db" stroke-width="1.5"/>
+  <text x="270" y="430" font-size="10" font-weight="bold" fill="#123f9e">[CORE] doc B</text>
+  <text x="270" y="446" font-size="8.5" fill="#333">e.g. the glossary,</text>
+  <text x="270" y="460" font-size="8.5" fill="#333">read whole (~1.4k tok)</text>
+  <text x="270" y="478" font-size="8" font-style="italic" fill="#666">every extra [CORE] doc</text>
+  <text x="270" y="490" font-size="8" font-style="italic" fill="#666">is a tax on every task</text>
+
+  <!-- total -->
+  <rect x="46" y="518" width="408" height="50" rx="6" fill="#1a56db"/>
+  <text x="250" y="540" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">≈ 6,500 tokens total</text>
+  <text x="250" y="556" text-anchor="middle" font-size="9" fill="#dce8ff">the same number today as when the folder was empty</text>
+
+  <text x="46" y="596" font-size="9" fill="#666">Everything above is either read whole (rules, prompt, [CORE] docs)</text>
+  <text x="46" y="610" font-size="9" fill="#666">or reduced to one line per file (the three indexes). Nothing else</text>
+  <text x="46" y="624" font-size="9" fill="#666">from MEMORY, non-CORE KNOWLEDGE, or SKILLS is opened yet.</text>
+
+  <!-- RIGHT: dormant on disk -->
+  <rect x="530" y="80" width="480" height="580" rx="10" fill="#f7f7f7" stroke="#999" stroke-width="2" stroke-dasharray="6 4"/>
+  <rect x="530" y="80" width="480" height="28" rx="10" fill="#777"/>
+  <rect x="530" y="94" width="480" height="14" fill="#777"/>
+  <text x="770" y="99" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">ON DISK, DORMANT — ~207,000 tokens</text>
+
+  <rect x="546" y="122" width="448" height="130" rx="6" fill="#ffffff" stroke="#ccc" stroke-width="1.3"/>
+  <text x="558" y="144" font-size="11" font-weight="bold" fill="#555">KNOWLEDGE — everything without [CORE]</text>
+  <text x="558" y="162" font-size="9" fill="#777">~38 docs, ~2.4k tokens average each</text>
+  <text x="558" y="178" font-size="9" fill="#777">opened only when its one-line summary</text>
+  <text x="558" y="192" font-size="9" fill="#777">matches the task at hand</text>
+  <text x="558" y="214" font-size="9" font-style="italic" fill="#999">represented on the left by one line</text>
+  <text x="558" y="228" font-size="9" font-style="italic" fill="#999">in KNOWLEDGE/INDEX.md, nothing more</text>
+
+  <rect x="546" y="264" width="448" height="130" rx="6" fill="#ffffff" stroke="#ccc" stroke-width="1.3"/>
+  <text x="558" y="286" font-size="11" font-weight="bold" fill="#555">MEMORY — every finding</text>
+  <text x="558" y="304" font-size="9" fill="#777">~22 findings, ~700 tokens average each</text>
+  <text x="558" y="320" font-size="9" fill="#777">consulted only if KNOWLEDGE didn't</text>
+  <text x="558" y="334" font-size="9" fill="#777">already answer the task</text>
+  <text x="558" y="356" font-size="9" font-style="italic" fill="#999">represented on the left by one line</text>
+  <text x="558" y="370" font-size="9" font-style="italic" fill="#999">in MEMORY/INDEX.md, nothing more</text>
+
+  <rect x="546" y="406" width="448" height="130" rx="6" fill="#ffffff" stroke="#ccc" stroke-width="1.3"/>
+  <text x="558" y="428" font-size="11" font-weight="bold" fill="#555">SKILLS — every procedure</text>
+  <text x="558" y="446" font-size="9" fill="#777">~6 skills, ~1.6k tokens average each</text>
+  <text x="558" y="462" font-size="9" fill="#777">loaded only when the task matches</text>
+  <text x="558" y="476" font-size="9" fill="#777">its trigger description</text>
+  <text x="558" y="498" font-size="9" font-style="italic" fill="#999">represented on the left by one line</text>
+  <text x="558" y="512" font-size="9" font-style="italic" fill="#999">in SKILLS/INDEX.md, nothing more</text>
+
+  <rect x="546" y="548" width="448" height="50" rx="6" fill="#e8e8e8"/>
+  <text x="770" y="570" text-anchor="middle" font-size="12" font-weight="bold" fill="#444">≈ 3% of this loads in an average session</text>
+  <text x="770" y="586" text-anchor="middle" font-size="9" fill="#666">the rest stays exactly here, one summary-match away</text>
+
+  <!-- connector -->
+  <path d="M 546 187 C 500 187, 480 268, 454 268" stroke="#777" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#ret)"/>
+  <text x="490" y="238" text-anchor="middle" font-size="8.5" fill="#666">the file itself stays</text>
+  <text x="490" y="249" text-anchor="middle" font-size="8.5" fill="#666">on the right</text>
+
+  <text x="520" y="700" text-anchor="middle" font-size="10.5" fill="#888">Full detail: TLDR.md · README.md § The core idea · github.com/ricardopsantos/AgenticContext</text>
+</svg>

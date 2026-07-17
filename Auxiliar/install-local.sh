@@ -87,13 +87,15 @@ echo "• Installing framework → $DEST"
 mkdir -p "$DEST/scripts" "$DEST/KNOWLEDGE/project" "$DEST/KNOWLEDGE/docs" "$DEST/MEMORY/example-topic"
 
 # --- framework skeleton ---
-# AGENTS.md/CLAUDE.md live inside .agentic_context/; MAIN_PROMPT.md and
-# README.md live at the repo root. Both end up inside the installed folder.
+# AGENTS.md/CLAUDE.md live inside .agentic_context/; MAIN_PROMPT.md,
+# README.md, and README+MORE.md live at the repo root. All end up inside
+# the installed folder.
 for f in AGENTS.md CLAUDE.md; do
   cp "$SRC/$f" "$DEST/$f"
 done
 cp "$REPO/MAIN_PROMPT.md" "$DEST/MAIN_PROMPT.md"
 cp "$REPO/README.md"      "$DEST/README.md"
+cp "$REPO/README+MORE.md" "$DEST/README+MORE.md"
 
 for s in rebuild-index.sh validate.sh confirm-summary.sh; do
   cp "$SRC/scripts/$s" "$DEST/scripts/$s"

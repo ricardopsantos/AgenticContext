@@ -10,342 +10,135 @@ three shell scripts — no database, no embeddings, no plugins. Only the folder
 on a vendor SDK: it's markdown your agent reads and shell scripts it runs. If
 your tool can read files and run commands, it works — Claude Code, GitHub
 Copilot CLI, Codex CLI, Gemini CLI, Cursor, Aider, or whatever replaces them.
-See [Using it with any agent](#using-it-with-any-agent).
+See [Using it with any agent](README+MORE.md#using-it-with-any-agent).
+
+*What this is, why it exists, and the whole algorithm on one page. For the install command, the glossary, and the full day-to-day reference, see [README+MORE.md](README+MORE.md).*
+
+**Index**
+
+- [The problem](#the-problem)
+- [How it works](#how-it-works)
+- [The algorithm](#the-algorithm)
+  - [Every session](#every-session)
+  - [Per task](#per-task)
+  - [After task](#after-task)
+  - [Over time](#over-time)
+  - [The same thing, as pseudocode](#the-same-thing-as-pseudocode)
 
 ---
 
-## Install
+## The problem
 
-From your project root:
+Every session your agent starts from zero. It re-greps the same code, re-reads the same files, and re-discovers the same gotchas, the ones that cost you a debug session the first time. On a big codebase that's 30k to 60k tokens burned before any new work happens.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/ricardopsantos/AgenticContext/main/Auxiliar/install.sh | bash
-```
+**Why notes don't fix it.** Two failure modes. A notes file big enough to be useful is too big to paste, and it buries the one fact you need under fifty you don't. Worse, hand-maintained indexes drift the moment a file gets renamed, and the agent trusts them anyway. A confidently wrong map is worse than no map.
 
-Needs only `curl` and `tar`. It creates the context folder (skeleton, scripts,
-meta-skills, dummy example docs marked "delete me"), then builds the indexes and
-validates the install. It refuses to overwrite an existing install. If you use
-Claude Code it also drops in the `/enrich-prompt` slash-command wrapper; other
-agents ignore it.
+## How it works
 
-**The folder name is yours.** It defaults to `.agentic_context`, and on a
-terminal the installer asks for the name and whether to hide it. Or pass flags:
+**Three folders, split by behavior.** `KNOWLEDGE/` is stable reference: a small `[CORE]` subset loads every session, the rest on demand. `MEMORY/` is findings you only learn by hitting them, timestamped, never loaded upfront. `SKILLS/` is reusable procedures, loaded when the task matches. Different behavior, so different loading rules.
 
-```bash
-curl -fsSL <same-url> | bash -s -- /path/to/project [options]
+Here is exactly what that means at session start: a flat, small set loaded in full, and everything else left dormant on disk.
 
-  --dir <name>   context folder name, used verbatim (default: .agentic_context)
-  --visible      drop the leading dot, so the folder isn't hidden
-  --force        overwrite an existing install
-  --yes          never ask; take the defaults
-```
+![What loads at session start: rules, the bootstrap prompt, the three INDEX.md files, and the CORE KNOWLEDGE docs, totaling about 6,500 tokens, next to everything on disk that stays dormant until a summary matches.](TLDR_session_load_diagram.svg)
 
-`curl | bash` hands the script its own stdin, so the questions are read from
-`/dev/tty`; with no terminal (CI, redirected stdin) it takes the defaults
-rather than hanging.
+**Every file describes itself.** Line 1 is the title, line 2 is a one-line `> summary:`. Skills get it free, since their frontmatter `description:` *is* the summary. That line isn't an abstract, it's a trigger: it's the only thing read to decide whether opening the file is worth it. An index entry costs about 30 tokens; the file itself costs 600 to 2,400.
 
-Nothing gets patched to match your choice, because **the prompt identifies its
-root by what the folder *contains* (`scripts/rebuild-index.sh` + `KNOWLEDGE/`),
-not by what it's called.** `.agentic_context`, `agentic_context`, `brain`,
-`notes` all work, and you can rename the folder later without editing anything.
+One file, and the three things generated from its parts: the index entry, the fingerprint, and the staleness check.
 
-To install from a local clone instead: `./Auxiliar/install-local.sh <target-dir>`
-(same options).
+![Anatomy of one MEMORY file: the title, the highlighted summary line, and the Used-in usage log, with arrows showing what each part becomes: an INDEX.md entry, a scripts/.summary-hashes fingerprint, and the validate.sh staleness comparison.](TLDR_file_anatomy_diagram.svg)
+
+**The index is generated, never written.** [`rebuild-index.sh`](https://github.com/ricardopsantos/AgenticContext/blob/main/.agentic_context/scripts/rebuild-index.sh) walks the folders, scrapes each file's summary line, and rewrites all three `INDEX.md` from scratch. The summary lives inside the file it describes, which is the single source of truth, and the index is a disposable derivative. Add a file, rebuild, it appears. Delete one, rebuild, it's gone. Because the index is a pure function of disk, it *cannot* disagree with disk. That's the decision everything else hangs off.
+
+**The safety net.** [`validate.sh`](https://github.com/ricardopsantos/AgenticContext/blob/main/.agentic_context/scripts/validate.sh) flags files missing a summary, summaries spilling to a second line, files sitting where the index script can't see them, and any index older than what it describes. Truthfulness is checked, not hoped for.
+
+**Promotion, by evidence.** Findings start in MEMORY because at discovery you can't tell a local quirk from a project-wide fact. Each finding records the domains it gets used in, and at three distinct domains the rebuild nominates it. The test is generality rather than frequency: a daily gotcha inside one module stays put, while a rare but project-wide fact moves up. A human approves the move, because promotion adds to the always-loaded core, and that core only works while it stays small.
+
+**Why it scales.** On the deployment we measured, the knowledge folder is 214k tokens and no longer fits in a context window at all. Per-session load: **~6,500 tokens, flat.** Each new document adds ~47 tokens to a session, because the index grows by one line, not by the document. Awareness of everything at ~2% of its cost, and that ratio holds as the folder grows for years. At that scale (33 repos, ~4.6M tokens of source) it works out to ~78% cheaper orientation, with break-even on the first reused fact.
+
+**The honest limit.** A script can guarantee every file has a summary. It can't judge whether that summary is still true after the body changes. So the rebuild fingerprints summary and body separately, and validation warns `UNCONFIRMED` when they drift, flagging that a human judgment is due instead of faking one. Automate what's mechanical, detect the rest.
+
+Two of those states, STALE and UNCONFIRMED, aren't exclusive to MEMORY or to KNOWLEDGE — both apply to either side alike. This is what that looks like as a Venn diagram: MEMORY-only states on the left, KNOWLEDGE-only states on the right, and the two shared states sitting in the overlap.
+
+![Finding and doc lifecycle as a Venn diagram: MEMORY-only states (MEMORY, PROMOTE?) on the left, KNOWLEDGE-only states (KNOWLEDGE, CORE) on the right, and the shared states STALE and UNCONFIRMED in the overlap, with promotion as the one arrow crossing between the two lobes.](TLDR_states_diagram.svg)
+
+No database, no embeddings, no plugins. Three folders, three shell scripts, plain markdown.
 
 ---
 
-## The problem this solves
+## The algorithm
 
-An agent only knows what's in its context window. On a big project that grows
-over months, two things go wrong:
+*One rule underneath all of it: **files are the source of truth, indexes are derived.** The agent reads the map but never draws it.*
 
-1. **Context doesn't persist.** Findings discovered in one session are gone by
-   the next unless something stores them.
-2. **Stored context rots.** The moment you keep a hand-maintained list of "what
-   we know," it drifts out of sync with reality — files get renamed, added, or
-   deleted and the list lies. A confidently-wrong index is worse than none.
+The steps below as a sequence diagram, showing who calls whom: the agent, the
+scripts, disk, and the human who has the only vote on promotion and staleness.
 
-The whole design is a response to #2. Almost every choice here exists to make
-drift *impossible by construction* rather than *avoided by discipline*.
+![The algorithm as a sequence diagram across four lifelines (Agent, Scripts, Disk, Human), grouped into four phases (every session, per task, after task, over time), with numbered circles matching the steps below.](TLDR_sequence_diagram.svg)
 
----
+### Every session
 
-## The three folders
+0. **You start it — paste the session bootstrap.** Everything below only happens because you open every agent session by pasting [MAIN_PROMPT.md](https://github.com/ricardopsantos/AgenticContext/blob/main/MAIN_PROMPT.md) (or pointing your tool's auto-loaded rules at it). The prompt then finds the root on its own: walk up from the working directory and match the context folder by what it *contains* (`scripts/rebuild-index.sh` + `KNOWLEDGE/`), never by name — nothing hardcoded, so the folder can be called anything. Then it reads the rules (`AGENTS.md`).
+1. **Self-heal first.** Rebuild the indexes from disk *before* reading them. A map regenerated from the territory can't be out of date.
+2. **Validate.** If a file lost its summary, or sits where the script can't see it, fail loudly now. Don't build on a broken index.
+3. **Load small.** The rules file, the three index one-liners, and the `[CORE]` docs. Nothing else. ~6,500 tokens, flat, forever.
 
-Context is split by *how it behaves*, not by topic:
+### Per task
 
-- **`KNOWLEDGE/`** — static, authoritative reference. Ground truth that rarely
-  changes (architecture, product maps, glossaries). Treated as fact. Has a small
-  always-loaded core (`[CORE]`).
-- **`MEMORY/`** — session-learned findings. Non-obvious gotchas/quirks/fixes
-  discovered while working. Narrow, timestamped, written at discovery time.
-  Never loaded upfront — only dug up on demand.
-- **`SKILLS/`** — how-to guides. Reusable procedures (build/release, Swift
-  concurrency patterns, testing strategy).
+4. **Scan, don't open.** Match the task against the index one-liners. KNOWLEDGE first; consult MEMORY only if KNOWLEDGE didn't answer.
+5. **Open on match only.** A summary is a trigger, not an abstract. It's the sole basis for deciding whether the file is worth its 600 to 2,400 tokens.
+6. **Record the hit.** When a finding answers a task, append that task's domain to its `Used in:` line. This is what turns promotion into evidence.
 
-Reference vs. findings vs. procedures. Keeping them separate is what lets each
-have its own load policy.
+### After task
 
----
+7. **Write what you learned**, but only if it's non-obvious, will recur, and is too narrow for KNOWLEDGE. Never official-doc facts, one-off context, or secrets. One finding, one file, timestamped, summary on line 2.
+8. **Rebuild.** The new finding appears in the index because it's on disk, not because anyone listed it.
 
-## The core idea: tiered, lazy, self-describing
+### Over time
 
-The agent should *not* load everything every session — that bloats context and
-drowns the relevant in the irrelevant. Instead:
+9. **Promote on evidence.** At three or more distinct domains in `Used in:`, the rebuild nominates a finding. The test is generality, not frequency. A human approves, because promotion grows the always-loaded core and that core only works while it's small. Once folded into KNOWLEDGE, the finding is marked `[STALE]`.
+10. **Supersede, never delete.** The replacement goes in, the old summary gets `[STALE]`, and it drops to a "skip unless auditing" tail. You keep the trail of what you once believed.
+11. **Re-confirm meaning.** Bodies drift from summaries. Fingerprint both; when they diverge, warn `UNCONFIRMED` and make a human re-read and decide.
 
-- At session start it loads only **small index files** plus a tiny always-on
-  core. Everything else is loaded **on demand**, only when relevant.
-- Each item **describes itself** in one line. KNOWLEDGE and MEMORY docs carry a
-  `> summary:` line as line 2; skills use their frontmatter `description:`.
-  That one line is the trigger the agent reads to decide whether to open the
-  full file.
-
-This is the "load descriptions, not just names" principle: a bare filename like
-`init-order.md` is a weak signal; a one-line summary lets the agent reliably
-decide what to dig into.
-
-### `[CORE]` and `[PROMOTE?]` tags
-
-- `[CORE]` in a KNOWLEDGE summary = always load this at session start (it's
-  relevant to almost every task). Keep this set *tiny* — it's the one thing that
-  loads unconditionally.
-- `[PROMOTE?]` in a MEMORY summary = this finding looks broadly applicable and
-  is a candidate to graduate into KNOWLEDGE (see "Promotion" below).
-
----
-
-## Why the index is *derived*, never hand-written
-
-The single most important decision. The summary lives **inside each file** (the
-source of truth). The `INDEX.md` files are **generated** from those summaries by
-a script. The agent reads the index; it never authors it.
-
-Consequence: the index is a pure function of what's on disk, so it *cannot*
-disagree with reality. Add a doc → rebuild → it appears. Delete a doc → rebuild
-→ it's gone. Edit a summary → rebuild → the index updates. The index is
-disposable; one command recreates it perfectly. This is what kills the drift
-problem at the root instead of asking a human to remember to keep a list current.
-
-The rejected alternative — "let the agent write entries straight into the
-index" — feels convenient but reintroduces drift: the summary then exists only
-in the index, can't be regenerated, and won't update when the doc changes.
-
----
-
-## `scripts/`
-
-- **`rebuild-index.sh`** — regenerates all three `INDEX.md` from the source
-  summaries (`> summary:` lines for docs, frontmatter `description:` for skills).
-  Each entry also gets an estimated context cost (`~N tok`, size ÷ 4), and MEMORY
-  entries with ≥3 distinct `**Used in:**` domains are auto-tagged
-  `[PROMOTE? auto]`. Run after any content change; also run on session init as a
-  self-heal.
-- **`validate.sh`** — read-only integrity check; exits non-zero on problems.
-  Flags: docs with missing/empty/multi-line `> summary:`, skills missing
-  `description:`, malformed `**Used in:**` lines, stray files the index script
-  can't see (docs at a folder root, skill folders without a `SKILL.md`), and any
-  `INDEX.md` older than the content it describes. `--content` runs only the
-  content checks — use it as a gate right after writing a file, since the
-  freshness check would flag a false STALE before the next rebuild. The full
-  run also *warns* (never fails) on semantic staleness: any doc whose body
-  changed since its summary was last confirmed (see below).
-- **`confirm-summary.sh <file>…`** — records the judgment "I re-read this doc
-  and its summary still fits" after a body-only edit, so validate stops
-  flagging it. Editing the summary line itself confirms implicitly.
-
-Both `cd` to the repo root first, so they work from anywhere and always write
-indexes at the root.
-
-**Known limit, and how it's handled:** the scripts can't judge whether a
-summary is still *accurate* — accuracy needs a read. But they can detect when
-that judgment is *due*: `rebuild-index.sh` keeps `scripts/.summary-hashes`
-(per file: summary-line hash + body hash; refreshed when a file is new or its
-summary changes, kept when only the body changes), and `validate.sh` warns
-`UNCONFIRMED` for any doc whose body drifted past its last-confirmed summary.
-Resolving the warning is the judgment step: re-read and either rewrite the
-summary or run `confirm-summary.sh` (procedure:
-`SKILLS/meta/reconcile-summaries`). The cache is recorded judgment — commit
-it; deleting it silently re-confirms everything.
-
----
-
-## How a session runs (see `MAIN_PROMPT.md`)
-
-Paste `MAIN_PROMPT.md` at the start of an agent session. It is
-**bootstrap + load order only** — it says *when* to read things; what each folder
-*is* lives in that folder's `SKILL.md`. Flow:
-
-0. Discover `<root>` — walk up from the working directory and match each
-   ancestor's child folders on *contents*, not name. Nothing is hardcoded and
-   nothing is patched at install time, so the prompt is machine-, project- and
-   name-independent: paste the same text anywhere, call the folder anything.
-1. Read the rules (`AGENTS.md`).
-2. Self-heal: run `rebuild-index.sh`, then `validate.sh` (full check).
-3. Load policy: read the three small indexes; always-load `[CORE]`; everything
-   else lazy on summary match.
-4. Orient in the project only if a task needs it — scoped and shallow, not a
-   full workspace map at init.
-5. Per task: check MEMORY before; after, write qualifying findings, append the
-   task's domain to any finding's `**Used in:**` line that answered, rebuild.
-6. On close: if the session did real work, run `SKILLS/meta/session-debrief`.
-
-There is no drift-check step, by design: step 2 rebuilds the indexes from disk
-before anything reads them, so an index *cannot* disagree with the tree. A
-check for a state the design makes unreachable is dead weight in a prompt
-that's pasted every session.
-
----
-
-## Using it with any agent
-
-The framework needs exactly two capabilities: **read a file** and **run a shell
-command**. There is no API call, no SDK, no plugin — so any terminal agent can
-drive it, and switching tools costs nothing because the context lives in your
-repo, not in a vendor's memory feature.
-
-Two things are conventionally tool-specific, and both are one line to adapt:
-
-**1. The rules file.** `AGENTS.md` is the single source of rules and is already
-the cross-tool convention (Codex, Copilot and Cursor read it). Each agent
-auto-loads its own filename, so point that filename at `AGENTS.md` rather than
-copying rules into it — two copies drift, which is the exact failure this whole
-design exists to prevent. `CLAUDE.md` ships doing precisely that; its entire
-contents are:
+### The same thing, as pseudocode
 
 ```
-Check `AGENTS.md`
+on session_start:
+    root = discover_root()          # find it, don't assume it
+    read(AGENTS.md)                 # the rules
+    rebuild_index()                 # self-heal BEFORE reading
+    if not validate(): stop()       # never build on a broken map
+    load(CORE_docs + INDEX summaries)
+
+on task:
+    hits = scan(INDEX one-liners, task)          # ~30 tokens each
+    for doc in hits where summary matches task:
+        open(doc)                                # 600-2,400 tokens
+        if doc in MEMORY and doc answered task:
+            doc.used_in += task.domain
+            rebuild_index()
+
+on task_end:
+    if learned(x) and non_obvious(x) and recurs(x) and too_narrow_for_KNOWLEDGE(x):
+        write(MEMORY/<slug>/<timestamp>_<topic>.md, summary=line_2(x))
+        rebuild_index()
+
+on rebuild_index:                   # the load-bearing function
+    for folder in [KNOWLEDGE, MEMORY, SKILLS]:
+        INDEX[folder] = [scrape_summary(f) for f in walk(folder)]
+        # pure function of disk => cannot disagree with disk
+    fingerprint(summary, body)      # for staleness detection
+
+on promotion_check:                 # inside rebuild
+    if count(distinct(finding.used_in)) >= 3:
+        nominate(finding)           # nominate; never decide
+        # human approves -> fold into KNOWLEDGE, mark finding [STALE]
+
+on validate:
+    assert every file has a one-line summary
+    assert no file is invisible to the index script
+    assert every INDEX newer than what it describes
+    warn UNCONFIRMED where body_hash drifted past confirmed_summary_hash
 ```
 
-Add the equivalent for your tool (`.github/copilot-instructions.md`,
-`GEMINI.md`, `.cursor/rules/`, `CONVENTIONS.md`, …). And note that step 1 of
-`MAIN_PROMPT.md` tells the agent to read `AGENTS.md` outright, so even a tool
-with no auto-load convention picks up the rules.
-
-**2. The `/enrich-prompt` shortcut** is a Claude Code slash command, and the
-only genuinely Claude-only artifact here. It's a thin wrapper holding no logic:
-the procedure lives in `SKILLS/meta/improve-prompt/`. On any other agent, say
-"follow `SKILLS/meta/improve-prompt` with this prompt" — same result, one more
-sentence.
-
-Everything else — the three folders, the derived `INDEX.md` files, the
-`> summary:` contract, the scripts, promotion, the debrief — is plain markdown
-and bash.
-
-**Division of labor:** rules that describe a folder's own mechanics live in its
-`SKILL.md` (they travel with the folder); rules about session orchestration live
-in the main prompt (it's what actually runs each session). Anything long enough
-to have a procedure — the debrief, the summary reconciliation — is a skill the
-prompt *points at*, not text the prompt carries. Definitions are written
-*once*: duplicating them across prompt and SKILL.md just creates a second copy
-to keep in sync.
-
 ---
 
-## Adding things
-
-- **KNOWLEDGE doc:** drop a `.md` in the right family; line 1 `# Title`, line 2
-  `> summary: …` (prefix `[CORE]` if always-load); run `rebuild-index.sh`.
-- **MEMORY finding:** `MEMORY/<slug>/YYYYMMDD_HHMMSS_<sub-slug>.md` with a
-  `> summary:` line; run `rebuild-index.sh`. Supersede by adding a new file and
-  marking the old stale in its Caveats — never delete.
-- **Skill:** `SKILLS/<category>/<name>/SKILL.md` with frontmatter `name:` +
-  `description:` (the description is what the index shows — make it
-  trigger-worthy); run `rebuild-index.sh`.
-
----
-
-## Meta skills — the framework about itself
-
-`SKILLS/meta/` holds skills that operate on the context system rather than the
-project:
-
-- **`improve-prompt`** — turn a raw prompt into an enriched one: rewrite for
-  clarity, match it against the three indexes, inline what fits a ~4k-token
-  budget (bigger matches become load instructions), show the result, execute
-  only on confirmation. Any agent can run it — just say "follow
-  `SKILLS/meta/improve-prompt`". Claude Code users get a thin `/enrich-prompt`
-  wrapper in `.claude/skills/` as a shortcut; all logic stays here, so the
-  skill travels with the folder and the wrapper holds nothing.
-- **`reconcile-summaries`** — the judgment pass that resolves `UNCONFIRMED
-  summary` warnings from `validate.sh`: re-read each flagged doc, rewrite the
-  summary or confirm it via `confirm-summary.sh`.
-- **`session-debrief`** — the end-of-session retrospective: six fixed questions
-  (least-confident, what the user is missing, the insight they didn't ask to
-  store, future fragility, an unrequested feature, prompting efficiency), saved
-  as a finding under `MEMORY/session-final/`.
-
----
-
-## Promotion: MEMORY → KNOWLEDGE
-
-### What it is
-
-Moving a finding *up* from MEMORY into KNOWLEDGE once it has proven it deserves
-to always be available. A finding starts in MEMORY because, at discovery time,
-you can't yet tell whether it's a one-off quirk or a fundamental fact about the
-project. Promotion is the moment you decide it's the latter — so the agent stops
-having to dig it up and instead just always has it.
-
-The point of the move: MEMORY is only consulted on demand; KNOWLEDGE (especially
-`[CORE]`) is loaded every session. Promoting puts a fact where it's always in
-context.
-
-### The test: generality, NOT frequency
-
-The intuitive rule — "I've used this a lot, so promote it" — is wrong. The right
-question is **"does this apply to almost any task here, or just one corner of the
-project?"** Breadth of applicability, not how often you've hit it. This breaks
-the frequency intuition in both directions:
-
-- **Frequent but narrow → stays in MEMORY.**
-  *Example:* "The payments SDK must be initialised before the API key is set."
-  You might hit this constantly, but it only matters inside the payments module.
-  Promote it and you'd force that trivia into context for every unrelated task —
-  exactly the bloat the tiered system exists to prevent.
-
-- **Rare but broad → should be promoted.**
-  *Example:* "Every service repo clones under `~/Code/<org>/`." You touch
-  this rarely, but it's true project-wide and useful from almost any task. When
-  you do need it, it should already be loaded, not dug up.
-
-### Why a human confirms it (not automatic)
-
-Promotion adds to the always-loaded core, and that core only works while it stays
-small. If the agent auto-promoted anything it used a few times, the core would
-quietly bloat until the lean-startup-load benefit is gone. So the flow splits
-*flagging* from *deciding*: a candidate gets flagged either by hand (prefix its
-summary with `[PROMOTE?]`) or automatically — `rebuild-index.sh` tags any MEMORY
-finding whose `**Used in:**` line spans ≥3 distinct domains. Either way, the
-actual move is a deliberate human checkpoint that guards the core against creep.
-
-### How to actually do it
-
-1. Copy the finding's content into the correct `KNOWLEDGE/<family>/` as a proper
-   doc, with its own `> summary:` line (add `[CORE]` only if it should load every
-   session).
-2. Mark the original MEMORY file stale in its Caveats (same supersede rule MEMORY
-   uses everywhere) — don't delete it.
-3. Run `./scripts/rebuild-index.sh` so both indexes update.
-
----
-
-## Open questions / future improvements
-
-Nothing currently open. Resolved since first written:
-
-- **Semantic staleness** — `rebuild-index.sh` keeps a summary/body hash cache,
-  `validate.sh` warns `UNCONFIRMED` when a body drifts past its confirmed
-  summary, and `SKILLS/meta/reconcile-summaries` is the judgment pass that
-  resolves the warnings (rewrite or `confirm-summary.sh`).
-- **Index-entry → missing-file check** — `validate.sh` now catches strays and
-  stale indexes.
-- **Auto-promotion signal** — `**Used in:**` tracking + auto `[PROMOTE?]` at
-  ≥3 distinct domains.
-- **`AGENTS.md` tension** — stated as "think deeply; write briefly".
-
----
-
-## License
-
-[MIT](LICENSE) — use it, fork it, ship it. Attribution appreciated but the
-license doesn't require your gratitude, only the copyright notice.
+*The long-form story: [The Index That Can't Lie](https://ricardojpsantos.medium.com/the-index-that-cant-lie-how-we-gave-claude-code-a-memory-that-maintains-itself-614340266577) on Medium.*

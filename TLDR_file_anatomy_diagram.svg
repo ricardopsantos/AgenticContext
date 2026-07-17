@@ -1,0 +1,117 @@
+<svg viewBox="0 0 1100 780" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1100" height="780" fill="#ffffff"/>
+  <text x="550" y="26" text-anchor="middle" font-size="18" font-weight="bold" fill="#1a1a1a">Anatomy of a file</text>
+  <text x="550" y="44" text-anchor="middle" font-size="11" fill="#666">one MEMORY finding, and the three things generated from its parts</text>
+
+  <defs>
+    <marker id="call" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#333"/>
+    </marker>
+    <marker id="ret" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#777"/>
+    </marker>
+  </defs>
+
+  <!-- LEFT: the file itself -->
+  <rect x="30" y="70" width="440" height="600" rx="8" fill="#fafafa" stroke="#ccc" stroke-width="1.5"/>
+  <rect x="30" y="70" width="440" height="26" rx="8" fill="#333"/>
+  <rect x="30" y="83" width="440" height="13" fill="#333"/>
+  <text x="42" y="88" font-size="10.5" fill="#fff" font-family="Menlo, Consolas, monospace">MEMORY/project-paths/20260617_..._repo-paths.md</text>
+
+  <!-- title line -->
+  <rect x="40" y="106" width="420" height="20" fill="#eee"/>
+  <text x="48" y="120" font-size="11" font-family="Menlo, Consolas, monospace" fill="#333"># Repo paths for the SDK family</text>
+
+  <!-- summary line, highlighted -->
+  <rect x="40" y="130" width="420" height="42" fill="#fde9c8" stroke="#e0ad2e" stroke-width="1.3"/>
+  <text x="48" y="146" font-size="11" font-family="Menlo, Consolas, monospace" fill="#7a5200">&gt; summary: Every SDK repo clones under</text>
+  <text x="58" y="162" font-size="11" font-family="Menlo, Consolas, monospace" fill="#7a5200">~/Code/&lt;org&gt;/&lt;repo&gt;.</text>
+
+  <!-- rest of body -->
+  <text x="48" y="200" font-size="11" font-family="Menlo, Consolas, monospace" fill="#333">**Discovered:** 2026-06-17</text>
+  <text x="48" y="220" font-size="11" font-family="Menlo, Consolas, monospace" fill="#333">**Context:** onboarding a new machine</text>
+
+  <!-- used in, highlighted -->
+  <rect x="40" y="230" width="420" height="42" fill="#f0e3fd" stroke="#a56ee0" stroke-width="1.3"/>
+  <text x="48" y="246" font-size="11" font-family="Menlo, Consolas, monospace" fill="#5b2bb5">**Used in:** onboarding, ci-setup,</text>
+  <text x="58" y="262" font-size="11" font-family="Menlo, Consolas, monospace" fill="#5b2bb5">release-process</text>
+
+  <text x="48" y="300" font-size="11" font-family="Menlo, Consolas, monospace" fill="#333">## Finding</text>
+  <text x="48" y="320" font-size="10.5" font-family="Menlo, Consolas, monospace" fill="#555">Repos live under a single org prefix;</text>
+  <text x="48" y="338" font-size="10.5" font-family="Menlo, Consolas, monospace" fill="#555">the sample app is a subfolder, not a</text>
+  <text x="48" y="356" font-size="10.5" font-family="Menlo, Consolas, monospace" fill="#555">separate repo.</text>
+
+  <text x="48" y="396" font-size="11" font-family="Menlo, Consolas, monospace" fill="#333">## Caveats</text>
+  <text x="48" y="416" font-size="10.5" font-family="Menlo, Consolas, monospace" fill="#555">Update this if the org migrates to a</text>
+  <text x="48" y="434" font-size="10.5" font-family="Menlo, Consolas, monospace" fill="#555">different host.</text>
+
+  <!-- body bracket: everything except the summary line -->
+  <path d="M 26 108 L 20 108 L 20 126" stroke="#1a56db" stroke-width="1.8" fill="none"/>
+  <path d="M 26 194 L 20 194 L 20 460 L 26 460" stroke="#1a56db" stroke-width="1.8" fill="none"/>
+  <text x="10" y="290" font-size="9.5" fill="#1a56db" font-weight="bold" transform="rotate(-90 10 290)">body = file minus line 2</text>
+
+  <!-- legend -->
+  <rect x="40" y="446" width="14" height="14" fill="#fde9c8" stroke="#e0ad2e"/>
+  <text x="60" y="457" font-size="9" fill="#555">line 2 — the summary (the trigger)</text>
+  <rect x="40" y="464" width="14" height="14" fill="#f0e3fd" stroke="#a56ee0"/>
+  <text x="60" y="475" font-size="9" fill="#555">Used in: — the usage log</text>
+  <rect x="40" y="482" width="14" height="14" fill="none" stroke="#1a56db" stroke-width="1.5"/>
+  <text x="60" y="493" font-size="9" fill="#555">bracket — everything else (the body)</text>
+
+  <!-- RIGHT: three derived artifacts -->
+
+  <!-- 1. INDEX.md -->
+  <rect x="560" y="70" width="510" height="140" rx="8" fill="#f5f8ff" stroke="#c7d9fb" stroke-width="1.5"/>
+  <rect x="560" y="70" width="300" height="24" fill="#1a56db"/>
+  <text x="570" y="87" font-size="11" font-weight="bold" fill="#fff">MEMORY/INDEX.md — generated, never hand-edited</text>
+  <text x="576" y="118" font-size="10.5" font-family="Menlo, Consolas, monospace" fill="#333">## project-paths/</text>
+  <text x="576" y="136" font-size="10" font-family="Menlo, Consolas, monospace" fill="#333">- `project-paths/20260617_..._repo-paths.md`</text>
+  <text x="590" y="152" font-size="10" font-family="Menlo, Consolas, monospace" fill="#333">— Every SDK repo clones under ~/Code/&lt;org&gt;/...</text>
+  <text x="590" y="168" font-size="10" font-family="Menlo, Consolas, monospace" fill="#1a56db">(~180 tok)</text>
+  <text x="650" y="168" font-size="10" font-family="Menlo, Consolas, monospace" fill="#7e3ff2">[PROMOTE? auto — used in 3 domains]</text>
+  <text x="576" y="192" font-size="9" font-style="italic" fill="#666">one entry, one line per indexed file — no per-family script edits</text>
+
+  <!-- 2. .summary-hashes -->
+  <rect x="560" y="240" width="510" height="120" rx="8" fill="#f2f2f2" stroke="#999" stroke-width="1.5"/>
+  <rect x="560" y="240" width="360" height="24" fill="#555"/>
+  <text x="570" y="257" font-size="11" font-weight="bold" fill="#fff">scripts/.summary-hashes — recorded judgment, committed</text>
+  <text x="576" y="292" font-size="10" font-family="Menlo, Consolas, monospace" fill="#333">hash(summary) ⇥ hash(body) ⇥ project-paths/20260617_...md</text>
+  <text x="576" y="312" font-size="9" fill="#7a5200">↑ from the amber line</text>
+  <text x="576" y="326" font-size="9" fill="#1a56db">↑ from the blue bracket — refreshed only when new, or summary edited</text>
+  <text x="576" y="342" font-size="9" font-style="italic" fill="#666">the one file that is not derivable from the rest — delete it and judgment is lost</text>
+
+  <!-- 3. validate.sh -->
+  <rect x="560" y="400" width="510" height="150" rx="8" fill="#fff3f3" stroke="#e05252" stroke-width="1.5" stroke-dasharray="5 3"/>
+  <rect x="560" y="400" width="220" height="24" fill="#c0392b"/>
+  <text x="570" y="417" font-size="11" font-weight="bold" fill="#fff">validate.sh — every session</text>
+  <text x="576" y="450" font-size="10" fill="#333">compares the file's live hashes against the stored line:</text>
+  <text x="586" y="470" font-size="9.5" font-family="Menlo, Consolas, monospace" fill="#1e7e34">summary same, body same  →  OK</text>
+  <text x="586" y="488" font-size="9.5" font-family="Menlo, Consolas, monospace" fill="#c0392b">summary same, body changed  →  UNCONFIRMED</text>
+  <text x="586" y="506" font-size="9.5" font-family="Menlo, Consolas, monospace" fill="#666">summary changed  →  entry refreshes (editing IS confirming)</text>
+  <text x="576" y="532" font-size="9" font-style="italic" fill="#a93226">a warning, not a failure — exit 0, resolved by a human re-read</text>
+
+  <!-- arrows: file parts -> artifacts -->
+  <line x1="472" y1="151" x2="558" y2="130" stroke="#e0ad2e" stroke-width="1.5" marker-end="url(#call)"/>
+  <text x="500" y="115" text-anchor="middle" font-size="8.5" fill="#8a5a00">scraped verbatim</text>
+
+  <line x1="472" y1="251" x2="558" y2="170" stroke="#a56ee0" stroke-width="1.5" marker-end="url(#call)"/>
+  <text x="500" y="225" text-anchor="middle" font-size="8.5" fill="#5b2bb5">count distinct domains,</text>
+  <text x="500" y="236" text-anchor="middle" font-size="8.5" fill="#5b2bb5">tag if ≥ 3</text>
+
+  <line x1="472" y1="151" x2="558" y2="290" stroke="#e0ad2e" stroke-width="1.5" marker-end="url(#call)"/>
+  <text x="503" y="300" text-anchor="middle" font-size="8.5" fill="#8a5a00">hash(summary)</text>
+
+  <line x1="472" y1="380" x2="558" y2="315" stroke="#1a56db" stroke-width="1.5" marker-end="url(#call)"/>
+  <text x="503" y="345" text-anchor="middle" font-size="8.5" fill="#123f9e">hash(body)</text>
+
+  <line x1="870" y1="360" x2="870" y2="398" stroke="#777" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ret)"/>
+  <text x="920" y="382" text-anchor="middle" font-size="8.5" fill="#666">reads the</text>
+  <text x="920" y="393" text-anchor="middle" font-size="8.5" fill="#666">stored fingerprint</text>
+
+  <path d="M 472 460 C 520 460, 520 460, 558 460" stroke="#777" stroke-width="1.3" stroke-dasharray="4 3" fill="none" marker-end="url(#ret)"/>
+  <text x="513" y="475" text-anchor="middle" font-size="8" fill="#666">re-reads the</text>
+  <text x="513" y="486" text-anchor="middle" font-size="8" fill="#666">live file each rebuild</text>
+
+  <text x="550" y="705" text-anchor="middle" font-size="10.5" fill="#888">One file, read once, produces all three. Nothing here is typed twice, so nothing here can drift out of sync by hand.</text>
+  <text x="550" y="723" text-anchor="middle" font-size="10.5" fill="#888">Full detail: TLDR.md · README.md § Glossary · github.com/ricardopsantos/AgenticContext</text>
+</svg>

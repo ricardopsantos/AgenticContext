@@ -23,10 +23,10 @@
 #   1. Downloads the AgenticContext repo tarball (no git required — curl + tar only).
 #   2. Copies the framework skeleton: rules (AGENTS.md/CLAUDE.md), MAIN_PROMPT.md,
 #      the three folder SKILL.md entry points, the scripts, and SKILLS/meta/
-#      (improve-prompt, reconcile-summaries, session-debrief). Project-specific
-#      skills are NOT shipped.
+#      (reconcile-summaries, session-debrief). Project-specific skills are NOT
+#      shipped.
 #   3. Seeds KNOWLEDGE/ and MEMORY/ with dummy examples (marked "delete me").
-#   4. Installs the /enrich-prompt wrapper into <target>/.claude/skills/ (if shipped).
+#   4. Builds the indexes and runs the validator, so the install proves itself healthy.
 #   5. Builds the indexes and validates the install.
 #
 # The installed MAIN_PROMPT.md needs no patching whatever the folder is named:
@@ -117,13 +117,15 @@ mkdir -p "$DEST/scripts" "$DEST/KNOWLEDGE/project" "$DEST/KNOWLEDGE/docs" \
          "$DEST/MEMORY/example-topic" "$DEST/SKILLS"
 
 # --- framework skeleton (copied as-is) ---
-# AGENTS.md/CLAUDE.md live inside .agentic_context/; MAIN_PROMPT.md and
-# README.md live at the repo root. Both end up inside the installed folder.
+# AGENTS.md/CLAUDE.md live inside .agentic_context/; MAIN_PROMPT.md,
+# README.md, and README+MORE.md live at the repo root. All end up inside
+# the installed folder.
 for f in AGENTS.md CLAUDE.md; do
   cp "$SRC/$f" "$DEST/$f"
 done
 cp "$REPO_ROOT/MAIN_PROMPT.md" "$DEST/MAIN_PROMPT.md"
 cp "$REPO_ROOT/README.md"      "$DEST/README.md"
+cp "$REPO_ROOT/README+MORE.md" "$DEST/README+MORE.md"
 for s in rebuild-index.sh validate.sh confirm-summary.sh; do
   cp "$SRC/scripts/$s" "$DEST/scripts/$s"
 done
@@ -138,19 +140,6 @@ find "$DEST" -name '.DS_Store' -delete 2>/dev/null || true
 SKILL_COUNT=$(find "$DEST/SKILLS" -mindepth 2 -name SKILL.md | wc -l | tr -d ' ')
 
 # The prompt self-discovers its root — nothing to patch.
-
-# --- /enrich-prompt wrapper for Claude Code (optional; skip if user has one) ---
-WRAPPER_SRC="$REPO_ROOT/.claude/skills/enrich-prompt/SKILL.md"
-WRAPPER_NOTE="not shipped in this ref"
-if [ -e "$WRAPPER_SRC" ]; then
-  if [ -e "$TARGET/.claude/skills/enrich-prompt/SKILL.md" ] && [ "$FORCE" -ne 1 ]; then
-    WRAPPER_NOTE="kept existing $TARGET/.claude/skills/enrich-prompt/"
-  else
-    mkdir -p "$TARGET/.claude/skills/enrich-prompt"
-    cp "$WRAPPER_SRC" "$TARGET/.claude/skills/enrich-prompt/SKILL.md"
-    WRAPPER_NOTE="installed → $TARGET/.claude/skills/enrich-prompt/"
-  fi
-fi
 
 # --- dummy KNOWLEDGE docs (delete once real content exists) ---
 TODAY=$(date +%Y-%m-%d)
@@ -219,7 +208,6 @@ echo "  Context folder:      $CTX_NAME/ ($HIDDEN_NOTE)"
 [ "$CTX_NAME" = "$DEFAULT_NAME" ] && \
   echo "                       default — override with: --dir <name> [--visible]"
 echo "  Skills installed:    $SKILL_COUNT (meta only — add your own under SKILLS/<category>/)"
-echo "  /enrich-prompt:      $WRAPPER_NOTE"
 echo "  Dummy KNOWLEDGE:     2 (marked 'delete me' — replace with real docs)"
 echo "  Dummy MEMORY:        2 (marked 'delete me' — replace with real findings)"
 echo

@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+._*
+
+# editors
+.idea/
+.vscode/
+*.swp
+
+# agent-local settings (never part of the framework release)
+.claude/settings.local.json
