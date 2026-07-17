@@ -6,4 +6,4 @@
 **Names only at init.** Consult when a slug is relevant and KNOWLEDGE didn't answer. `[PROMOTE?]` = candidate for KNOWLEDGE (hand-flagged, or auto at ≥3 used-in domains).
 
 ## example-topic/
-- `example-topic/20260717_213303_example-finding.md` — (dummy — delete me) Example session finding: non-obvious, will recur, too narrow for KNOWLEDGE. (~132 tok)
+- `example-topic/20260717_220535_example-finding.md` — (dummy — delete me) Example session finding: non-obvious, will recur, too narrow for KNOWLEDGE. (~132 tok)
