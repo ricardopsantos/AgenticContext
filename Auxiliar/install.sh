@@ -12,6 +12,20 @@
 #   --visible      drop the leading dot, so the folder is not hidden
 #   --force        overwrite an existing install
 #   --yes          never prompt; take the defaults
+#   --from <path>  migrate content from a previous install at <path> instead of
+#                  seeding dummy examples: copies KNOWLEDGE/, MEMORY/, every
+#                  SKILLS/ category except meta/ (meta/ is framework, comes
+#                  fresh), and scripts/.summary-hashes (preserves any pending
+#                  UNCONFIRMED judgment state). <path> is the old context
+#                  folder itself, e.g. /old/project/.agentic_context.
+#                  If <path> IS the install destination (the common "re-run
+#                  the installer here to pick up bugfixes" case), it's backed
+#                  up to <path>.bak-<timestamp> and the fresh install replaces
+#                  it automatically — no --force or --in-place needed.
+#   --in-place     only with --from pointing elsewhere: after migrating,
+#                  back up the old install to <path>.bak-<timestamp> and move
+#                  the fresh install onto its old location/name, instead of
+#                  leaving the fresh install where --dir/--visible put it.
 #
 # With no --dir/--visible/--yes and a terminal available, it asks for the
 # folder name and whether to hide it. `curl | bash` gives the script its own
@@ -40,7 +54,10 @@ set -euo pipefail
 REPO_OWNER="ricardopsantos"
 REPO_NAME="AgenticContext"
 REF="${AGENTIC_CONTEXT_REF:-main}"
-TARBALL_URL="https://codeload.github.com/${REPO_OWNER}/${REPO_NAME}/tar.gz/refs/heads/${REF}"
+# codeload needs to know whether REF is a branch or a tag; try both rather
+# than assuming refs/heads (that made AGENTIC_CONTEXT_REF=<tag> 404 silently).
+TARBALL_URL_HEADS="https://codeload.github.com/${REPO_OWNER}/${REPO_NAME}/tar.gz/refs/heads/${REF}"
+TARBALL_URL_TAGS="https://codeload.github.com/${REPO_OWNER}/${REPO_NAME}/tar.gz/refs/tags/${REF}"
 
 # --- args ---
 # stdin belongs to `curl | bash`, so anything interactive must read /dev/tty.
@@ -50,6 +67,8 @@ FORCE=0
 ASSUME_YES=0
 CTX_NAME=""
 VISIBLE=0
+FROM_ARG=""
+IN_PLACE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --force)     FORCE=1; shift ;;
@@ -57,14 +76,18 @@ while [ $# -gt 0 ]; do
     --visible)   VISIBLE=1; shift ;;
     --dir)       CTX_NAME="${2:-}"; [ -n "$CTX_NAME" ] || { echo "ERROR: --dir needs a name"; exit 1; }; shift 2 ;;
     --dir=*)     CTX_NAME="${1#*=}"; shift ;;
-    -h|--help)   sed -n '2,30p' "$0" 2>/dev/null || true; exit 0 ;;
+    --from)      FROM_ARG="${2:-}"; [ -n "$FROM_ARG" ] || { echo "ERROR: --from needs a path"; exit 1; }; shift 2 ;;
+    --from=*)    FROM_ARG="${1#*=}"; shift ;;
+    --in-place)  IN_PLACE=1; shift ;;
+    -h|--help)   sed -n '2,42p' "$0" 2>/dev/null || true; exit 0 ;;
     *)           TARGET_ARG="$1"; shift ;;
   esac
 done
 [ -d "$TARGET_ARG" ] || { echo "ERROR: target project folder does not exist: $TARGET_ARG"; exit 1; }
 TARGET="$(cd "$TARGET_ARG" && pwd)"
 
-# --- choose the context folder name ---
+# --- choose the context folder name (needed before resolving FROM, so the
+# migration prompt can offer "upgrade the install found here" as the default) ---
 # Rules, in order: --dir wins and is used verbatim; otherwise ask on a real
 # terminal; otherwise take the default. --visible always strips a leading dot.
 # No name is ever silently rewritten — what you pass is what you get.
@@ -89,6 +112,54 @@ esac
 
 DEST="$TARGET/$CTX_NAME"
 
+# --- resolve migration source, if any ---
+# --from wins verbatim; otherwise ask on a real terminal. If an install
+# already exists at DEST, blank defaults to upgrading it in place; otherwise
+# blank means skip. No prompt at all under --yes or without a tty.
+FROM=""
+if [ -n "$FROM_ARG" ]; then
+  FROM="$FROM_ARG"
+elif [ "$ASSUME_YES" -eq 0 ] && [ -r /dev/tty ] && [ -t 1 ]; then
+  if [ -e "$DEST" ]; then
+    printf 'Existing install found at %s.\nMigrate KNOWLEDGE/MEMORY/SKILLS from a previous install? Path [%s]: ' "$DEST" "$DEST" > /dev/tty
+    IFS= read -r ANS < /dev/tty || ANS=""
+    FROM="${ANS:-$DEST}"
+  else
+    printf 'Migrate KNOWLEDGE/MEMORY/SKILLS from a previous install? Path (blank to skip): ' > /dev/tty
+    IFS= read -r FROM < /dev/tty || FROM=""
+  fi
+fi
+if [ -n "$FROM" ]; then
+  [ -d "$FROM" ] || { echo "ERROR: --from path does not exist: $FROM"; exit 1; }
+  FROM="$(cd "$FROM" && pwd)"
+  [ -f "$FROM/scripts/rebuild-index.sh" ] && [ -d "$FROM/KNOWLEDGE" ] || {
+    echo "ERROR: --from path doesn't look like an .agentic_context install (missing scripts/rebuild-index.sh or KNOWLEDGE/): $FROM"; exit 1; }
+fi
+
+# --- in-place upgrade: back up the old install and clear its slot ---
+# Two ways to end up "in place": --from already points at DEST itself (the
+# ordinary re-run-here case, no extra flag needed), or --from points
+# elsewhere and --in-place asks to relocate the fresh install onto it.
+RELOCATE_TARGET=""
+AUTO_INPLACE_BACKUP=""
+if [ -n "$FROM" ] && [ "$FROM" = "$DEST" ]; then
+  TS="$(date +%Y%m%d_%H%M%S)"
+  AUTO_INPLACE_BACKUP="${DEST}.bak-${TS}"
+  echo "• Backing up existing install: $DEST -> $AUTO_INPLACE_BACKUP"
+  mv "$DEST" "$AUTO_INPLACE_BACKUP"
+  FROM="$AUTO_INPLACE_BACKUP"
+  IN_PLACE=1
+elif [ -n "$FROM" ]; then
+  if [ "$IN_PLACE" -eq 0 ] && [ "$ASSUME_YES" -eq 0 ] && [ -r /dev/tty ] && [ -t 1 ]; then
+    printf 'Replace the old install in place (back it up, move the fresh install to %s)? [y/N]: ' "$FROM" > /dev/tty
+    IFS= read -r ANS_INPLACE < /dev/tty || ANS_INPLACE=""
+    case "$ANS_INPLACE" in [Yy]*) IN_PLACE=1 ;; esac
+  fi
+  [ "$IN_PLACE" -eq 1 ] && RELOCATE_TARGET="$FROM"
+elif [ "$IN_PLACE" -eq 1 ]; then
+  echo "ERROR: --in-place needs --from <path> (or an interactive migration path)"; exit 1
+fi
+
 if [ -e "$DEST" ]; then
   if [ "$FORCE" -eq 1 ]; then
     echo "• --force: removing existing $DEST"
@@ -107,8 +178,14 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 echo "• Downloading ${REPO_OWNER}/${REPO_NAME}@${REF}"
-curl -fsSL "$TARBALL_URL" | tar -xz -C "$TMP"
-REPO_ROOT="$TMP/${REPO_NAME}-${REF}"
+TARBALL="$TMP/repo.tar.gz"
+if ! curl -fsSL "$TARBALL_URL_HEADS" -o "$TARBALL"; then
+  curl -fsSL "$TARBALL_URL_TAGS" -o "$TARBALL" || {
+    echo "ERROR: could not download ref '${REF}' as a branch or a tag"; exit 1; }
+fi
+tar -xz -C "$TMP" -f "$TARBALL"
+REPO_ROOT="$(find "$TMP" -mindepth 1 -maxdepth 1 -type d -name "${REPO_NAME}-*" | head -1)"
+[ -n "$REPO_ROOT" ] || { echo "ERROR: extracted tarball did not contain a ${REPO_NAME}-* folder"; exit 1; }
 SRC="$REPO_ROOT/.agentic_context"
 [ -d "$SRC" ] || { echo "ERROR: .agentic_context/ not found in the downloaded repo (ref: ${REF})"; exit 1; }
 
@@ -126,7 +203,7 @@ done
 cp "$REPO_ROOT/MAIN_PROMPT.md" "$DEST/MAIN_PROMPT.md"
 cp "$REPO_ROOT/README.md"      "$DEST/README.md"
 cp "$REPO_ROOT/README+MORE.md" "$DEST/README+MORE.md"
-for s in rebuild-index.sh validate.sh confirm-summary.sh; do
+for s in rebuild-index.sh validate.sh confirm-summary.sh stats.sh; do
   cp "$SRC/scripts/$s" "$DEST/scripts/$s"
 done
 chmod +x "$DEST/scripts/"*.sh
@@ -141,8 +218,36 @@ SKILL_COUNT=$(find "$DEST/SKILLS" -mindepth 2 -name SKILL.md | wc -l | tr -d ' '
 
 # The prompt self-discovers its root — nothing to patch.
 
-# --- dummy KNOWLEDGE docs (delete once real content exists) ---
+# --- migrate from a previous install, or seed dummy content ---
+if [ -n "$FROM" ]; then
+  echo "• Migrating content from $FROM"
+  rm -rf "$DEST/KNOWLEDGE" "$DEST/MEMORY"
+  cp -R "$FROM/KNOWLEDGE" "$DEST/KNOWLEDGE"
+  cp -R "$FROM/MEMORY"    "$DEST/MEMORY"
+  # SKILLS: keep the fresh meta/ (framework, already current); overlay every
+  # other category from the old install, replacing the template version so the
+  # project's own edits win.
+  if [ -d "$FROM/SKILLS" ]; then
+    for cat in "$FROM/SKILLS"/*/; do
+      [ -d "$cat" ] || continue
+      name="$(basename "$cat")"
+      [ "$name" = "meta" ] && continue
+      rm -rf "$DEST/SKILLS/$name"
+      cp -R "$cat" "$DEST/SKILLS/$name"
+    done
+  fi
+  # Preserve pending UNCONFIRMED judgment state; rebuild-index.sh below only
+  # refreshes entries whose summary line actually changed.
+  [ -f "$FROM/scripts/.summary-hashes" ] && cp "$FROM/scripts/.summary-hashes" "$DEST/scripts/.summary-hashes"
+  find "$DEST" -name '.DS_Store' -delete 2>/dev/null || true
+  MIGRATED=1
+else
+  MIGRATED=0
+fi
+
+# --- dummy KNOWLEDGE docs (delete once real content exists; skipped when --from migrated) ---
 TODAY=$(date +%Y-%m-%d)
+if [ "$MIGRATED" -eq 0 ]; then
 cat > "$DEST/KNOWLEDGE/project/ProjectMap.md" <<EOF
 # Project Map (dummy)
 > summary: [CORE] (dummy — replace me) One-line map of the project: repos, modules, and where things live.
@@ -194,12 +299,27 @@ The rebuild script counts distinct domains and auto-tags the index entry
 \`[PROMOTE? auto — used in N domains]\` at ≥3 — generality proven by use.
 A human still confirms the actual move into KNOWLEDGE.
 EOF
+fi # MIGRATED
 
 # --- build indexes + verify ---
 echo "• Building indexes"
 "$DEST/scripts/rebuild-index.sh"
 echo "• Validating"
 "$DEST/scripts/validate.sh"
+
+# --- relocate onto the old install's path/name, if --in-place was requested
+#     for a --from that pointed elsewhere (the "already in place" case above
+#     never sets RELOCATE_TARGET, since DEST is already the right spot) ---
+RELOCATE_BACKUP=""
+if [ -n "$RELOCATE_TARGET" ]; then
+  TS="$(date +%Y%m%d_%H%M%S)"
+  RELOCATE_BACKUP="${RELOCATE_TARGET}.bak-${TS}"
+  echo "• Relocating: backing up $RELOCATE_TARGET -> $RELOCATE_BACKUP, then moving the fresh install there"
+  mv "$RELOCATE_TARGET" "$RELOCATE_BACKUP"
+  mv "$DEST" "$RELOCATE_TARGET" 2>/dev/null || { cp -R "$DEST" "$RELOCATE_TARGET" && rm -rf "$DEST"; }
+  DEST="$RELOCATE_TARGET"
+  CTX_NAME="$(basename "$DEST")"
+fi
 
 HIDDEN_NOTE="hidden"; [ "${CTX_NAME#.}" = "$CTX_NAME" ] && HIDDEN_NOTE="visible"
 echo
@@ -208,11 +328,24 @@ echo "  Context folder:      $CTX_NAME/ ($HIDDEN_NOTE)"
 [ "$CTX_NAME" = "$DEFAULT_NAME" ] && \
   echo "                       default — override with: --dir <name> [--visible]"
 echo "  Skills installed:    $SKILL_COUNT (meta only — add your own under SKILLS/<category>/)"
-echo "  Dummy KNOWLEDGE:     2 (marked 'delete me' — replace with real docs)"
-echo "  Dummy MEMORY:        2 (marked 'delete me' — replace with real findings)"
+if [ -n "$RELOCATE_BACKUP" ]; then
+  echo "  Upgraded in place:   old install at $RELOCATE_TARGET backed up to $RELOCATE_BACKUP"
+  echo "  (KNOWLEDGE, MEMORY, and non-meta SKILLS carried over; no dummy content seeded.)"
+elif [ -n "$AUTO_INPLACE_BACKUP" ]; then
+  echo "  Upgraded in place:   old install backed up to $AUTO_INPLACE_BACKUP"
+  echo "  (KNOWLEDGE, MEMORY, and non-meta SKILLS carried over; no dummy content seeded.)"
+elif [ "$MIGRATED" -eq 1 ]; then
+  echo "  Migrated from:       $FROM"
+  echo "  (KNOWLEDGE, MEMORY, and non-meta SKILLS carried over; no dummy content seeded.)"
+else
+  echo "  Dummy KNOWLEDGE:     2 (marked 'delete me' — replace with real docs)"
+  echo "  Dummy MEMORY:        2 (marked 'delete me' — replace with real findings)"
+fi
 echo
 echo "Next steps:"
 echo "  1. Paste $DEST/MAIN_PROMPT.md at the start of each agent session."
 echo "     (It finds its own root by content, so the folder name is free."
 echo "      Rename $CTX_NAME/ whenever you like — nothing to re-edit.)"
-echo "  2. Replace the dummy docs/findings, then run scripts/rebuild-index.sh."
+if [ "$MIGRATED" -eq 0 ]; then
+  echo "  2. Replace the dummy docs/findings, then run scripts/rebuild-index.sh."
+fi

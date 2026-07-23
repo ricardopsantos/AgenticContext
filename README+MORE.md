@@ -103,6 +103,8 @@ curl -fsSL <same-url> | bash -s -- /path/to/project [options]
   --visible      drop the leading dot, so the folder isn't hidden
   --force        overwrite an existing install
   --yes          never ask; take the defaults
+  --from <path>  migrate KNOWLEDGE/MEMORY/SKILLS from a previous install
+  --in-place     with --from elsewhere: relocate the fresh install onto it
 ```
 
 `curl | bash` hands the script its own stdin, so the questions are read from
@@ -113,6 +115,47 @@ Nothing gets patched to match your choice, because the prompt identifies its
 root by what the folder *contains* (`scripts/rebuild-index.sh` + `KNOWLEDGE/`),
 not by what it's called. `.agentic_context`, `agentic_context`, `brain`,
 `notes` all work, and you can rename the folder later without editing anything.
+
+### Upgrading — the system evolves, and you can pull the evolution in
+
+The framework itself (scripts, `MAIN_PROMPT.md`, `meta/` skills) improves over
+time — bugfixes, new checks, new capabilities. Re-running the installer is how
+you pick that up, without losing what you've built: your `KNOWLEDGE/`,
+`MEMORY/`, and project-specific `SKILLS/` are never framework code, so a fresh
+install can always replace the framework parts around them.
+
+**Migrating into a new/renamed install.** Pass `--from <path>` pointing at an
+old install's context folder (or leave it blank on a terminal prompt — it
+offers the right default automatically), and the new install carries over
+`KNOWLEDGE/`, `MEMORY/`, and every `SKILLS/` category except `meta/` (that
+stays framework-fresh) instead of seeding dummy examples. It also copies
+`scripts/.summary-hashes`, so any doc that was already flagged `UNCONFIRMED`
+in the old install stays flagged — migrating doesn't silently mark it
+confirmed.
+
+```bash
+# Example: bring an old install's content into a differently-named new one
+curl -fsSL <install-url> | bash -s -- /path/to/project --dir .agentic_context_v2 --from /path/to/project/.agentic_context
+```
+
+**Upgrading in place.** The common case is simpler: you just want to re-run
+the installer *on the same project* to pick up the latest framework, keeping
+everything you wrote. Point `--from` at the install's own location (or, on a
+terminal, just press Enter when it detects one there) — the installer backs
+it up to `<path>.bak-<timestamp>`, installs the current framework fresh, and
+migrates your content straight back in. No `--force` needed; the backup makes
+it non-destructive.
+
+```bash
+# Example: upgrade the install already sitting in this project
+cd /path/to/project
+curl -fsSL <install-url> | bash -s -- --from .agentic_context --yes
+```
+
+If the old install lives somewhere else and you want the fresh install to
+*take over its name and location* rather than sit at a new one, add
+`--in-place`: it backs up the old path the same way, then moves the freshly
+built (and already-migrated) install onto it.
 
 To install from a local clone instead: [`./Auxiliar/install-local.sh`](https://github.com/ricardopsantos/AgenticContext/blob/main/Auxiliar/install-local.sh) `<target-dir>`
 (same options).

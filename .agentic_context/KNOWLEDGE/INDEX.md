@@ -1,6 +1,6 @@
 # KNOWLEDGE — Index
 
-> DERIVED from each doc's `> summary:` line. Rebuilt: 2026-07-17. Run `./scripts/rebuild-index.sh`.
+> DERIVED from each doc's `> summary:` line. Rebuilt: 2026-07-23. Run `./scripts/rebuild-index.sh`.
 > `(~N tok)` = estimated context cost to open that doc (size ÷ 4).
 
 **Load at session start.** Read a doc only on summary match. `[CORE]` = always loaded.

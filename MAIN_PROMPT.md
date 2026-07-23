@@ -39,31 +39,36 @@ writing a file always flags a false STALE.
   `<root>/scripts/confirm-summary.sh '<path>'`.
 - **Otherwise** (didn't write it, or unsure): load `SKILLS/meta/reconcile-summaries`.
 
-## 3. Load policy — one rule, three folders
+## 3. Stats
+Run `<root>/scripts/stats.sh` and skim the output (folder/file counts, sizes,
+biggest/smallest). Informational only — nothing to act on unless a number
+looks obviously wrong (e.g. an empty root, a runaway file size).
+
+## 4. Load policy — one rule, three folders
 Read each folder's `SKILL.md` + `INDEX.md` (they're small). Load `[CORE]`
 KNOWLEDGE docs now; open anything else only when its summary/description
 matches the task. The indexes are your map — they're rebuilt from disk in
 step 2, so they cannot disagree with it.
 
-## 4. Orient in the project (optional, task-scoped)
+## 5. Orient in the project (optional, task-scoped)
 The indexes above map `<root>`. If a task needs the *project's* layout, map it
 then — scoped and shallow (`tree -L 2 <path>`, or `find <path> -maxdepth 2`),
 narrowed to the area you're working in. Don't map a large workspace at init:
 it costs thousands of tokens and buys nothing the indexes didn't already give
 you. Names, not contents.
 
-## 5. Per task
+## 6. Per task
 - Before: check `MEMORY/INDEX.md` for matching entries; open a finding only if KNOWLEDGE didn't answer.
 - After: if you learned something that meets `MEMORY/SKILL.md`'s write-criteria, write it, then rebuild the indexes. Don't silently drop a qualifying finding.
 - Usage: when a MEMORY finding answers a task, append that task's domain to its `**Used in:**` line, then rebuild.
 - Promote: if `MEMORY/INDEX.md` shows `[PROMOTE?]` entries (hand-flagged or auto), surface them to the user. Only on approval: fold into KNOWLEDGE per `MEMORY/SKILL.md`, mark the finding `[STALE]`. `[CORE]` tagging is always the user's call.
 
-## 6. Missing root
+## 7. Missing root
 If discovery above finds nothing, stop and tell the user plainly — _"Agentic
 context folder not found at or above `<cwd>`"_ — and ask for the correct
 location. Don't guess, search elsewhere, or recreate the folder.
 
-## 7. Ending-session debrief
+## 8. Ending-session debrief
 If the session produced decisions, code changes, or discoveries worth
 revisiting, load `SKILLS/meta/session-debrief` and follow it. Skip for trivial
 or purely informational chats.

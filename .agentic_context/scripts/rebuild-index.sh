@@ -35,7 +35,7 @@ build_docs () { # $1 root  $2 help line
         | sort -u
     )
 
-    for grp in "${groups[@]}"; do
+    for grp in "${groups[@]+"${groups[@]}"}"; do
       [ -n "$grp" ] || continue
       echo; echo "## ${grp}/"
       # Walk .md files directly inside this group folder (not deeper —
@@ -51,14 +51,19 @@ build_docs () { # $1 root  $2 help line
           if [ -n "$used" ]; then
             n=$(printf '%s\n' "$used" | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -v '^$' | sort -u | wc -l | tr -d ' ' || true)
             case "$sum" in
-              "[STALE]"*|"[PROMOTE?"*) ;;      # already flagged by hand or superseded
+              # match "[STALE]" AND "[STALE — why]": a stale summary carries
+              # its reason inline in practice, and a "[STALE]"-only glob
+              # silently matched none of them — so a superseded finding both
+              # stayed in the active list and kept collecting the auto
+              # PROMOTE? tag it had already been promoted out of.
+              "[STALE"*|"[PROMOTE?"*) ;;       # already flagged by hand or superseded
               *) [ "${n:-0}" -ge 3 ] && tag="[PROMOTE? auto — used in ${n} domains] " ;;
             esac
           fi
         fi
         line="- \`${f#"$root"/}\` — ${tag}${sum:-(no summary line)} (~$(tok_of "$f") tok)"
         case "$sum" in
-          "[STALE]"*) stale+="$line"$'\n' ;;   # superseded → tail section, out of the active list
+          "[STALE"*) stale+="$line"$'\n' ;;    # superseded → tail section, out of the active list
           *)          echo "$line" ;;
         esac
       done
@@ -67,7 +72,7 @@ build_docs () { # $1 root  $2 help line
       echo; echo "## superseded/ (historical — skip unless auditing)"
       printf '%s' "$stale"
     fi
-  } > "$out"; echo "wrote $out"
+  } > "$out.tmp" && mv "$out.tmp" "$out"; echo "wrote $out"
 }
 
 # --- skills folder (nested: SKILLS/<category>/<skill>/SKILL.md) ---
@@ -88,7 +93,7 @@ build_skills () {
         echo "- \`${sk#"$root"/}\` — ${desc:-(no description)} (~$(tok_of "$sf") tok)"
       done
     done
-  } > "$out"; echo "wrote $out"
+  } > "$out.tmp" && mv "$out.tmp" "$out"; echo "wrote $out"
 }
 
 # --- summary-confirmation cache (semantic-staleness support) ---

@@ -4,7 +4,9 @@
 # flagging it as UNCONFIRMED. Run only AFTER actually re-reading the doc —
 # this records a judgment, it doesn't make one.
 set -euo pipefail
+ORIG_PWD="$PWD"                                      # caller's cwd, before we cd below
 cd "$(dirname "$0")/.."
+ROOT="$PWD"
 CACHE="scripts/.summary-hashes"
 
 [ $# -ge 1 ] || { echo "usage: confirm-summary.sh <file> [<file>...]"; exit 1; }
@@ -12,7 +14,11 @@ CACHE="scripts/.summary-hashes"
 
 fail=0
 for f in "$@"; do
-  f="${f#"$PWD"/}"                                  # absolute → repo-root relative
+  case "$f" in
+    /*) : ;;                                         # already absolute
+    *)  f="$ORIG_PWD/$f" ;;                          # relative → resolve against caller's cwd first
+  esac
+  f="${f#"$ROOT"/}"                                  # absolute → repo-root relative
   if [ ! -e "$f" ]; then echo "NOT FOUND: $f"; fail=1; continue; fi
   case "$f" in
     SKILLS/*) sl=$(grep -m1 '^description:' "$f" 2>/dev/null || true)

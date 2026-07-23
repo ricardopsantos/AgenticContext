@@ -1,6 +1,6 @@
 # SKILLS — Index
 
-> DERIVED from each skill's frontmatter `description:`. Rebuilt: 2026-07-17. Run `./scripts/rebuild-index.sh`.
+> DERIVED from each skill's frontmatter `description:`. Rebuilt: 2026-07-23. Run `./scripts/rebuild-index.sh`.
 > `(~N tok)` = estimated context cost to open that skill (size ÷ 4).
 
 **Know they exist via this list. Load a skill's SKILL.md only when its description matches the task.**
