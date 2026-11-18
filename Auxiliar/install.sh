@@ -26,11 +26,16 @@
 #                  back up the old install to <path>.bak-<timestamp> and move
 #                  the fresh install onto its old location/name, instead of
 #                  leaving the fresh install where --dir/--visible put it.
+#   --mode <m>     what to install: "prompt" (just the MAIN_PROMPT.md
+#                  scaffold, the default), "mcp" (just the agentic_context_mcp
+#                  server, venv included), or "both". Without this flag, a
+#                  real terminal is asked; --yes or no tty silently keeps
+#                  "prompt" (today's only behavior, unchanged).
 #
-# With no --dir/--visible/--yes and a terminal available, it asks for the
-# folder name and whether to hide it. `curl | bash` gives the script its own
-# stdin, so the question is read from /dev/tty; with no tty it silently keeps
-# the defaults.
+# With no --dir/--visible/--yes/--mode and a terminal available, it asks for
+# the folder name, whether to hide it, and which of the above to install.
+# `curl | bash` gives the script its own stdin, so the questions are read
+# from /dev/tty; with no tty it silently keeps the defaults.
 #
 # What it does:
 #   0. Picks the context folder name (default .agentic_context; see Options).
@@ -42,6 +47,10 @@
 #   3. Seeds KNOWLEDGE/ and MEMORY/ with dummy examples (marked "delete me").
 #   4. Builds the indexes and runs the validator, so the install proves itself healthy.
 #   5. Builds the indexes and validates the install.
+#   6. With --mode mcp/both: also copies mcp_server/ (agentic_context_mcp) to
+#      <target>/mcp_server, creates its venv, and pip-installs it — see
+#      mcp_server/README.md / documents/MCP_SERVER_INSTALL.md for wiring it
+#      into a client (Claude Desktop, Aurora, ...) afterwards.
 #
 # The installed MAIN_PROMPT.md needs no patching whatever the folder is named:
 # it discovers its root by walking up from the working directory and matching on
@@ -69,6 +78,7 @@ CTX_NAME=""
 VISIBLE=0
 FROM_ARG=""
 IN_PLACE=0
+MODE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --force)     FORCE=1; shift ;;
@@ -79,12 +89,39 @@ while [ $# -gt 0 ]; do
     --from)      FROM_ARG="${2:-}"; [ -n "$FROM_ARG" ] || { echo "ERROR: --from needs a path"; exit 1; }; shift 2 ;;
     --from=*)    FROM_ARG="${1#*=}"; shift ;;
     --in-place)  IN_PLACE=1; shift ;;
-    -h|--help)   sed -n '2,42p' "$0" 2>/dev/null || true; exit 0 ;;
+    --mode)      MODE="${2:-}"; shift 2 ;;
+    --mode=*)    MODE="${1#*=}"; shift ;;
+    -h|--help)   sed -n '2,53p' "$0" 2>/dev/null || true; exit 0 ;;
     *)           TARGET_ARG="$1"; shift ;;
   esac
 done
+case "$MODE" in
+  ""|prompt|mcp|both) ;;
+  *) echo "ERROR: --mode must be one of: prompt, mcp, both (got '$MODE')"; exit 1 ;;
+esac
 [ -d "$TARGET_ARG" ] || { echo "ERROR: target project folder does not exist: $TARGET_ARG"; exit 1; }
 TARGET="$(cd "$TARGET_ARG" && pwd)"
+
+# --- what to install: prompt scaffold, mcp server, or both ---
+if [ -z "$MODE" ]; then
+  if [ "$ASSUME_YES" -eq 0 ] && [ -r /dev/tty ] && [ -t 1 ]; then
+    printf 'Install [1] prompt-only scaffold  [2] MCP server only  [3] both  [1]: ' > /dev/tty
+    IFS= read -r ANS_MODE < /dev/tty || ANS_MODE=""
+    case "$ANS_MODE" in
+      2) MODE="mcp" ;;
+      3) MODE="both" ;;
+      *) MODE="prompt" ;;
+    esac
+  else
+    MODE="prompt"
+  fi
+fi
+WANT_PROMPT=0; WANT_MCP=0
+case "$MODE" in
+  prompt) WANT_PROMPT=1 ;;
+  mcp)    WANT_MCP=1 ;;
+  both)   WANT_PROMPT=1; WANT_MCP=1 ;;
+esac
 
 # --- choose the context folder name (needed before resolving FROM, so the
 # migration prompt can offer "upgrade the install found here" as the default) ---
@@ -160,7 +197,7 @@ elif [ "$IN_PLACE" -eq 1 ]; then
   echo "ERROR: --in-place needs --from <path> (or an interactive migration path)"; exit 1
 fi
 
-if [ -e "$DEST" ]; then
+if [ "$WANT_PROMPT" -eq 1 ] && [ -e "$DEST" ]; then
   if [ "$FORCE" -eq 1 ]; then
     echo "• --force: removing existing $DEST"
     rm -rf "$DEST"
@@ -170,8 +207,12 @@ if [ -e "$DEST" ]; then
     exit 1
   fi
 fi
+if [ "$WANT_MCP" -eq 1 ] && [ -e "$TARGET/mcp_server" ] && [ "$FORCE" -ne 1 ]; then
+  echo "ERROR: $TARGET/mcp_server already exists. Re-run with --force to overwrite it."
+  exit 1
+fi
 
-# --- fetch the repo tarball to a temp dir ---
+# --- fetch the repo tarball to a temp dir (needed by both modes) ---
 command -v curl >/dev/null || { echo "ERROR: curl is required"; exit 1; }
 command -v tar  >/dev/null || { echo "ERROR: tar is required";  exit 1; }
 TMP="$(mktemp -d)"
@@ -186,6 +227,8 @@ fi
 tar -xz -C "$TMP" -f "$TARBALL"
 REPO_ROOT="$(find "$TMP" -mindepth 1 -maxdepth 1 -type d -name "${REPO_NAME}-*" | head -1)"
 [ -n "$REPO_ROOT" ] || { echo "ERROR: extracted tarball did not contain a ${REPO_NAME}-* folder"; exit 1; }
+
+if [ "$WANT_PROMPT" -eq 1 ]; then
 SRC="$REPO_ROOT/.agentic_context"
 [ -d "$SRC" ] || { echo "ERROR: .agentic_context/ not found in the downloaded repo (ref: ${REF})"; exit 1; }
 
@@ -195,17 +238,30 @@ mkdir -p "$DEST/scripts" "$DEST/KNOWLEDGE/project" "$DEST/KNOWLEDGE/docs" \
 
 # --- framework skeleton (copied as-is) ---
 # AGENTS.md/CLAUDE.md live inside .agentic_context/; MAIN_PROMPT.md,
-# README.md, and README+MORE.md live at the repo root. All end up inside
-# the installed folder.
+# README.md, and the deep-reference doc live at the repo root (source repo
+# keeps the latter at documents/REFERENCE.md; installed instances get it
+# flat, alongside README.md, since they have no documents/ folder). All end
+# up inside the installed folder.
 for f in AGENTS.md CLAUDE.md; do
   cp "$SRC/$f" "$DEST/$f"
 done
-cp "$REPO_ROOT/MAIN_PROMPT.md" "$DEST/MAIN_PROMPT.md"
-cp "$REPO_ROOT/README.md"      "$DEST/README.md"
-cp "$REPO_ROOT/README+MORE.md" "$DEST/README+MORE.md"
-for s in rebuild-index.sh validate.sh confirm-summary.sh stats.sh; do
-  cp "$SRC/scripts/$s" "$DEST/scripts/$s"
-done
+cp "$REPO_ROOT/MAIN_PROMPT.md"            "$DEST/MAIN_PROMPT.md"
+cp "$REPO_ROOT/README.md"                 "$DEST/README.md"
+cp "$REPO_ROOT/documents/REFERENCE.md"    "$DEST/REFERENCE.md"
+# REFERENCE.md's own links assume a documents/ subfolder (its home in the
+# source repo); here it lands flat, alongside README.md/LICENSE, so those
+# links need the leading "../" stripped back off. The image links stay
+# dangling either way — install has never shipped the diagram SVGs.
+sed -i.bak \
+  -e 's|\](\.\./README\.md)|](README.md)|' \
+  -e 's|\](\.\./LICENSE)|](LICENSE)|' \
+  "$DEST/REFERENCE.md" && rm -f "$DEST/REFERENCE.md.bak"
+# Every script, tests included (they are small and nothing loads them): the
+# version manifest lists them all, and a script missing here is a script that
+# silently never ships. VERSION/CHANGELOG/REQUIREMENTS/the manifest travel with them.
+for s in "$SRC"/scripts/*.sh; do cp "$s" "$DEST/scripts/$(basename "$s")"; done
+cp "$SRC/scripts/.system-manifest" "$DEST/scripts/.system-manifest"
+for f in VERSION CHANGELOG.md REQUIREMENTS.md; do cp "$SRC/$f" "$DEST/$f"; done
 chmod +x "$DEST/scripts/"*.sh
 cp "$SRC/KNOWLEDGE/SKILL.md" "$DEST/KNOWLEDGE/SKILL.md"
 cp "$SRC/MEMORY/SKILL.md"    "$DEST/MEMORY/SKILL.md"
@@ -267,6 +323,10 @@ sees only the summary line above (via the index) and opens the doc on match.
 Group docs into family folders (like \`docs/\` or \`project/\`); files at the
 KNOWLEDGE root are invisible to the index and flagged by validate.sh.
 EOF
+
+# --- MEMORY slug map: one tab-separated row per MEMORY/<slug>/ folder; rebuild-index.sh
+# prints it in the slim MEMORY/INDEX.md and warns about a folder with no row ---
+printf 'example-topic\tDummy slug (delete me): replace with your first real topic folder\n' > "$DEST/MEMORY/SLUGS.tsv"
 
 # --- dummy MEMORY findings (delete once real findings exist) ---
 TS=$(date +%Y%m%d_%H%M%S)
@@ -348,4 +408,33 @@ echo "     (It finds its own root by content, so the folder name is free."
 echo "      Rename $CTX_NAME/ whenever you like — nothing to re-edit.)"
 if [ "$MIGRATED" -eq 0 ]; then
   echo "  2. Replace the dummy docs/findings, then run scripts/rebuild-index.sh."
+fi
+fi # WANT_PROMPT
+
+# --- MCP server: copy from the downloaded tarball, venv, pip install ---
+if [ "$WANT_MCP" -eq 1 ]; then
+  MCP_SRC="$REPO_ROOT/mcp_server"
+  [ -d "$MCP_SRC" ] || { echo "ERROR: mcp_server/ not found in the downloaded repo (ref: ${REF})"; exit 1; }
+  MCP_DEST="$TARGET/mcp_server"
+  [ -e "$MCP_DEST" ] && rm -rf "$MCP_DEST"
+  echo "• Installing MCP server → $MCP_DEST"
+  mkdir -p "$MCP_DEST"
+  cp -R "$MCP_SRC/agentic_context_mcp" "$MCP_DEST/agentic_context_mcp"
+  cp "$MCP_SRC/pyproject.toml" "$MCP_DEST/pyproject.toml"
+  cp "$MCP_SRC/README.md"      "$MCP_DEST/README.md"
+  find "$MCP_DEST" -name '__pycache__' -o -name '.DS_Store' | xargs rm -rf 2>/dev/null || true
+
+  command -v python3 >/dev/null || { echo "ERROR: python3 is required to set up the MCP server venv"; exit 1; }
+  echo "• Creating venv and installing agentic_context_mcp"
+  python3 -m venv "$MCP_DEST/.venv"
+  "$MCP_DEST/.venv/bin/pip" install -q --upgrade pip
+  "$MCP_DEST/.venv/bin/pip" install -q -e "$MCP_DEST"
+
+  echo
+  echo "MCP server installed at $MCP_DEST"
+  echo "  Venv:  $MCP_DEST/.venv"
+  echo "  Verify it runs standalone: $MCP_DEST/.venv/bin/python -m agentic_context_mcp.server"
+  echo "  (should hang waiting on stdin — Ctrl-C to stop; that's correct with no client attached)"
+  echo "  Next: wire it into a client's config (command = that venv's python, args = [-m, agentic_context_mcp.server, <root>])."
+  echo "  See $MCP_DEST/README.md for the tool list, or https://github.com/${REPO_OWNER}/${REPO_NAME}/blob/${REF}/documents/MCP_SERVER_INSTALL.md for the full Claude Desktop walkthrough."
 fi

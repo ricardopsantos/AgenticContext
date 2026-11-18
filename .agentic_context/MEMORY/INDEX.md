@@ -1,9 +1,13 @@
-# MEMORY — Index
+# MEMORY — Index (slim)
 
-> DERIVED from each doc's `> summary:` line. Rebuilt: 2026-07-23. Run `./scripts/rebuild-index.sh`.
-> `(~N tok)` = estimated context cost to open that doc (size ÷ 4).
+> DERIVED. Rebuilt: 2026-11-18. Run `./scripts/rebuild-index.sh`. System v1.1.0. Full catalogue: `MEMORY/INDEX.full.md` (never load whole).
 
-**Names only at init.** Consult when a slug is relevant and KNOWLEDGE didn't answer. `[PROMOTE?]` = candidate for KNOWLEDGE (hand-flagged, or auto at ≥3 used-in domains).
+**What this is:** dated findings (gotchas, fixes, quirks) too narrow for KNOWLEDGE. Only this slug map is loaded at init.
+**When to look:** before investigating a symptom, or when the user says "again", "still", "back", "used to work"; and after KNOWLEDGE didn't answer.
+**How:** `scripts/memory-find.sh <keyword> [keyword…]` (case-insensitive, all keywords must match, max 15 hits; `[ARCHIVE]` slugs only with `--all`) → open a finding only on summary match. Never `cat` the full index.
 
-## example-topic/
-- `example-topic/20260723_083333_example-finding.md` — (dummy — delete me) Example session finding: non-obvious, will recur, too narrow for KNOWLEDGE. (~132 tok)
+## Slugs
+- `example-topic/` — 1 findings — Starter example (dummy): delete me with the dummy finding
+
+## Promotion candidates
+(none)

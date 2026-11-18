@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# summary: Marks a doc's summary as still accurate after a body-only edit by updating its hash in .summary-hashes; run by hand after editing.
 # Confirm that a doc's summary still fits its body after a body-only edit.
 # Updates that file's entry in scripts/.summary-hashes so validate.sh stops
 # flagging it as UNCONFIRMED. Run only AFTER actually re-reading the doc —

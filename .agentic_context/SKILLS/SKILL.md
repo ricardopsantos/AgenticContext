@@ -9,7 +9,7 @@ How-to guides (vs KNOWLEDGE=reference, MEMORY=findings). Categories are domain s
 - Live list is **`SKILLS/INDEX.md`** (entries = each skill's frontmatter `description:`). This is the "know they exist" layer.
 - Load a skill's own SKILL.md **only when its description matches the task, or the user says so** — never bulk-load.
 ## Adding a skill
-1. `SKILLS/<category>/<skill-name>/SKILL.md` with frontmatter `name:` + `description:` (the description is what the index shows — make it trigger-worthy).
+1. `SKILLS/<category>/<skill-name>/SKILL.md` with frontmatter `name:` + `description:` (the description is what the index shows — make it trigger-worthy, at most 300 characters; `validate.sh` warns).
 2. Run `./scripts/rebuild-index.sh`.
 
 Changed a skill? Re-check its `description:` still fits, then rebuild — the index copies the description verbatim, so a stale one shows up verbatim.

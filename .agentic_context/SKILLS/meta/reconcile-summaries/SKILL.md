@@ -1,6 +1,6 @@
 ---
 name: reconcile-summaries
-description: Resolve UNCONFIRMED-summary warnings from validate.sh — for each doc whose body changed since its summary was last confirmed, re-read the body and either rewrite the summary or confirm it via scripts/confirm-summary.sh, then rebuild. Load when validate reports UNCONFIRMED summaries, or for a periodic summary-hygiene pass.
+description: Resolve UNCONFIRMED-summary warnings from validate.sh: re-read each doc whose body changed, then rewrite its summary or confirm it via scripts/confirm-summary.sh, and rebuild. Load when validate reports UNCONFIRMED summaries, or for a periodic summary-hygiene pass.
 ---
 # Reconcile Summaries
 
@@ -14,6 +14,7 @@ you decide each one.
 ### 1. Get the list
 Run `<root>/scripts/rebuild-index.sh`, then `<root>/scripts/validate.sh`.
 Collect every `UNCONFIRMED summary` path. None → done, say so.
+`scripts/list-unconfirmed.sh` (in this skill's folder) does both commands and prints just the paths.
 
 ### 2. Judge each flagged doc — one at a time
 Read the doc's **body**, then its summary line, and ask: *would this one-liner

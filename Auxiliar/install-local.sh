@@ -22,12 +22,22 @@
 #                  back up the old install to <path>.bak-<timestamp> and move
 #                  the fresh install onto its old location/name, instead of
 #                  leaving the fresh install where --dir/--visible put it.
+#   --mode <m>     what to install: "prompt" (just the MAIN_PROMPT.md
+#                  scaffold, the default), "mcp" (just the agentic_context_mcp
+#                  server, venv included), or "both". Without this flag, a
+#                  real terminal is asked; --yes or no tty silently keeps
+#                  "prompt" (today's only behavior, unchanged).
 #
 # Copies the framework skeleton (rules, prompt, scripts, folder SKILL.md files)
 # and the ENTIRE SKILLS/ tree from this repo. KNOWLEDGE/ and MEMORY/ start with
 # generated dummy examples (marked "delete me") instead of this repo's content,
 # unless --from migrates real content over them.
 # Refuses to touch an existing install unless --force is given.
+#
+# With --mode mcp/both: also copies mcp_server/ (agentic_context_mcp) to
+# <target>/mcp_server, creates its venv, and pip-installs it — see
+# mcp_server/README.md / documents/MCP_SERVER_INSTALL.md for wiring it into
+# a client (Claude Desktop, Aurora, ...) afterwards.
 #
 # The installed MAIN_PROMPT.md needs no patching whatever the folder is named:
 # it discovers its root by walking up from the working directory and matching on
@@ -41,7 +51,7 @@ SRC="$REPO/.agentic_context"
 
 # --- args ---
 DEFAULT_NAME=".agentic_context"
-TARGET_ARG=""; FORCE=0; ASSUME_YES=0; CTX_NAME=""; VISIBLE=0; FROM_ARG=""; IN_PLACE=0
+TARGET_ARG=""; FORCE=0; ASSUME_YES=0; CTX_NAME=""; VISIBLE=0; FROM_ARG=""; IN_PLACE=0; MODE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --force)     FORCE=1; shift ;;
@@ -52,10 +62,16 @@ while [ $# -gt 0 ]; do
     --from)      FROM_ARG="${2:-}"; [ -n "$FROM_ARG" ] || { echo "ERROR: --from needs a path"; exit 1; }; shift 2 ;;
     --from=*)    FROM_ARG="${1#*=}"; shift ;;
     --in-place)  IN_PLACE=1; shift ;;
+    --mode)      MODE="${2:-}"; shift 2 ;;
+    --mode=*)    MODE="${1#*=}"; shift ;;
     -h|--help)   TARGET_ARG=""; break ;;
     *)           TARGET_ARG="$1"; shift ;;
   esac
 done
+case "$MODE" in
+  ""|prompt|mcp|both) ;;
+  *) echo "ERROR: --mode must be one of: prompt, mcp, both (got '$MODE')"; exit 1 ;;
+esac
 if [ -z "$TARGET_ARG" ]; then
   echo "usage: ./Auxiliar/install-local.sh <target-project-dir> [options]"
   echo "  --dir <name>   context folder name (default: $DEFAULT_NAME)"
@@ -64,11 +80,34 @@ if [ -z "$TARGET_ARG" ]; then
   echo "  --yes          never prompt; take the defaults"
   echo "  --from <path>  migrate KNOWLEDGE/MEMORY/SKILLS from a previous install"
   echo "  --in-place     with --from elsewhere: relocate the fresh install onto it"
+  echo "  --mode <m>     prompt | mcp | both (default: asks, or 'prompt' under --yes/no tty)"
   exit 1
 fi
 [ -d "$TARGET_ARG" ] || { echo "ERROR: target project folder does not exist: $TARGET_ARG"; exit 1; }
 TARGET="$(cd "$TARGET_ARG" && pwd)"
 
+# --- what to install: prompt scaffold, mcp server, or both ---
+if [ -z "$MODE" ]; then
+  if [ "$ASSUME_YES" -eq 0 ] && [ -r /dev/tty ] && [ -t 1 ]; then
+    printf 'Install [1] prompt-only scaffold  [2] MCP server only  [3] both  [1]: ' > /dev/tty
+    IFS= read -r ANS_MODE < /dev/tty || ANS_MODE=""
+    case "$ANS_MODE" in
+      2) MODE="mcp" ;;
+      3) MODE="both" ;;
+      *) MODE="prompt" ;;
+    esac
+  else
+    MODE="prompt"
+  fi
+fi
+WANT_PROMPT=0; WANT_MCP=0
+case "$MODE" in
+  prompt) WANT_PROMPT=1 ;;
+  mcp)    WANT_MCP=1 ;;
+  both)   WANT_PROMPT=1; WANT_MCP=1 ;;
+esac
+
+if [ "$WANT_PROMPT" -eq 1 ]; then
 # --- choose the context folder name (needed before resolving FROM, so the
 # migration prompt can offer "upgrade the install found here" as the default) ---
 if [ -n "$CTX_NAME" ]; then
@@ -155,18 +194,31 @@ mkdir -p "$DEST/scripts" "$DEST/KNOWLEDGE/project" "$DEST/KNOWLEDGE/docs" "$DEST
 
 # --- framework skeleton ---
 # AGENTS.md/CLAUDE.md live inside .agentic_context/; MAIN_PROMPT.md,
-# README.md, and README+MORE.md live at the repo root. All end up inside
-# the installed folder.
+# README.md, and the deep-reference doc live at the repo root (source repo
+# keeps the latter at documents/REFERENCE.md; installed instances get it
+# flat, alongside README.md, since they have no documents/ folder). All end
+# up inside the installed folder.
 for f in AGENTS.md CLAUDE.md; do
   cp "$SRC/$f" "$DEST/$f"
 done
-cp "$REPO/MAIN_PROMPT.md" "$DEST/MAIN_PROMPT.md"
-cp "$REPO/README.md"      "$DEST/README.md"
-cp "$REPO/README+MORE.md" "$DEST/README+MORE.md"
+cp "$REPO/MAIN_PROMPT.md"         "$DEST/MAIN_PROMPT.md"
+cp "$REPO/README.md"              "$DEST/README.md"
+cp "$REPO/documents/REFERENCE.md" "$DEST/REFERENCE.md"
+# REFERENCE.md's own links assume a documents/ subfolder (its home in the
+# source repo); here it lands flat, alongside README.md/LICENSE, so those
+# links need the leading "../" stripped back off. The image links stay
+# dangling either way — install has never shipped the diagram SVGs.
+sed -i.bak \
+  -e 's|\](\.\./README\.md)|](README.md)|' \
+  -e 's|\](\.\./LICENSE)|](LICENSE)|' \
+  "$DEST/REFERENCE.md" && rm -f "$DEST/REFERENCE.md.bak"
 
-for s in rebuild-index.sh validate.sh confirm-summary.sh stats.sh; do
-  cp "$SRC/scripts/$s" "$DEST/scripts/$s"
-done
+# Every script, tests included (they are small and nothing loads them): the
+# version manifest lists them all, and a script missing here is a script that
+# silently never ships. VERSION/CHANGELOG/REQUIREMENTS/the manifest travel with them.
+for s in "$SRC"/scripts/*.sh; do cp "$s" "$DEST/scripts/$(basename "$s")"; done
+cp "$SRC/scripts/.system-manifest" "$DEST/scripts/.system-manifest"
+for f in VERSION CHANGELOG.md REQUIREMENTS.md; do cp "$SRC/$f" "$DEST/$f"; done
 chmod +x "$DEST/scripts/"*.sh
 cp "$SRC/KNOWLEDGE/SKILL.md" "$DEST/KNOWLEDGE/SKILL.md"
 cp "$SRC/MEMORY/SKILL.md"    "$DEST/MEMORY/SKILL.md"
@@ -226,6 +278,10 @@ sees only the summary line above (via the index) and opens the doc on match.
 Group docs into family folders (like \`docs/\` or \`project/\`); files at the
 KNOWLEDGE root are invisible to the index and flagged by validate.sh.
 EOF
+
+# --- MEMORY slug map: one tab-separated row per MEMORY/<slug>/ folder; rebuild-index.sh
+# prints it in the slim MEMORY/INDEX.md and warns about a folder with no row ---
+printf 'example-topic\tDummy slug (delete me): replace with your first real topic folder\n' > "$DEST/MEMORY/SLUGS.tsv"
 
 # --- dummy MEMORY findings (delete once real findings exist) ---
 TS=$(date +%Y%m%d_%H%M%S)
@@ -307,4 +363,42 @@ echo "     (It finds its own root by content, so the folder name is free."
 echo "      Rename $CTX_NAME/ whenever you like — nothing to re-edit.)"
 if [ "$MIGRATED" -eq 0 ]; then
   echo "  2. Replace the dummy docs/findings, then run scripts/rebuild-index.sh."
+fi
+fi # WANT_PROMPT
+
+# --- MCP server: copy, venv, pip install ---
+if [ "$WANT_MCP" -eq 1 ]; then
+  MCP_SRC="$REPO/mcp_server"
+  [ -d "$MCP_SRC" ] || { echo "ERROR: mcp_server/ not found in this repo: $MCP_SRC"; exit 1; }
+  MCP_DEST="$TARGET/mcp_server"
+  if [ -e "$MCP_DEST" ] && [ "$FORCE" -ne 1 ]; then
+    echo "ERROR: $MCP_DEST already exists. Re-run with --force to overwrite it."
+    exit 1
+  fi
+  [ -e "$MCP_DEST" ] && rm -rf "$MCP_DEST"
+  echo "• Installing MCP server → $MCP_DEST"
+  mkdir -p "$MCP_DEST"
+  cp -R "$MCP_SRC/agentic_context_mcp" "$MCP_DEST/agentic_context_mcp"
+  cp "$MCP_SRC/pyproject.toml" "$MCP_DEST/pyproject.toml"
+  cp "$MCP_SRC/README.md"      "$MCP_DEST/README.md"
+  find "$MCP_DEST" -name '__pycache__' -o -name '.DS_Store' | xargs rm -rf 2>/dev/null || true
+
+  command -v python3 >/dev/null || { echo "ERROR: python3 is required to set up the MCP server venv"; exit 1; }
+  echo "• Creating venv and installing agentic_context_mcp"
+  python3 -m venv "$MCP_DEST/.venv"
+  "$MCP_DEST/.venv/bin/pip" install -q --upgrade pip
+  "$MCP_DEST/.venv/bin/pip" install -q -e "$MCP_DEST"
+  MCP_INSTALLED=1
+else
+  MCP_INSTALLED=0
+fi
+
+if [ "$MCP_INSTALLED" -eq 1 ]; then
+  echo
+  echo "MCP server installed at $TARGET/mcp_server"
+  echo "  Venv:  $TARGET/mcp_server/.venv"
+  echo "  Verify it runs standalone: $TARGET/mcp_server/.venv/bin/python -m agentic_context_mcp.server"
+  echo "  (should hang waiting on stdin — Ctrl-C to stop; that's correct with no client attached)"
+  echo "  Next: wire it into a client's config (command = that venv's python, args = [-m, agentic_context_mcp.server, <root>])."
+  echo "  See $TARGET/mcp_server/README.md, or this repo's documents/MCP_SERVER_INSTALL.md for the full Claude Desktop walkthrough."
 fi
