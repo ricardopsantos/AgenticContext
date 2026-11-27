@@ -26,11 +26,6 @@
 #                  back up the old install to <path>.bak-<timestamp> and move
 #                  the fresh install onto its old location/name, instead of
 #                  leaving the fresh install where --dir/--visible put it.
-#   --mode <m>     what to install: "prompt" (just the MAIN_PROMPT.md
-#                  scaffold, the default), "mcp" (just the agentic_context_mcp
-#                  server, venv included), or "both". Without this flag, a
-#                  real terminal is asked; --yes or no tty silently keeps
-#                  "prompt" (today's only behavior, unchanged).
 #
 # With no --dir/--visible/--yes/--mode and a terminal available, it asks for
 # the folder name, whether to hide it, and which of the above to install.
@@ -47,10 +42,6 @@
 #   3. Seeds KNOWLEDGE/ and MEMORY/ with dummy examples (marked "delete me").
 #   4. Builds the indexes and runs the validator, so the install proves itself healthy.
 #   5. Builds the indexes and validates the install.
-#   6. With --mode mcp/both: also copies mcp_server/ (agentic_context_mcp) to
-#      <target>/mcp_server, creates its venv, and pip-installs it — see
-#      mcp_server/README.md / documents/MCP_SERVER_INSTALL.md for wiring it
-#      into a client (Claude Desktop, Aurora, ...) afterwards.
 #
 # The installed MAIN_PROMPT.md needs no patching whatever the folder is named:
 # it discovers its root by walking up from the working directory and matching on
@@ -79,6 +70,9 @@ VISIBLE=0
 FROM_ARG=""
 IN_PLACE=0
 MODE=""
+# The MCP server is private: publish-public.sh sets this to 0 in the public copy, so the public installer neither
+# offers it nor accepts --mode mcp/both.
+MCP_AVAILABLE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --force)     FORCE=1; shift ;;
@@ -99,12 +93,15 @@ case "$MODE" in
   ""|prompt|mcp|both) ;;
   *) echo "ERROR: --mode must be one of: prompt, mcp, both (got '$MODE')"; exit 1 ;;
 esac
+if [ "$MCP_AVAILABLE" -eq 0 ] && { [ "$MODE" = mcp ] || [ "$MODE" = both ]; }; then
+  echo "ERROR: this copy of AgenticContext has no MCP server; --mode prompt is the only mode"; exit 1
+fi
 [ -d "$TARGET_ARG" ] || { echo "ERROR: target project folder does not exist: $TARGET_ARG"; exit 1; }
 TARGET="$(cd "$TARGET_ARG" && pwd)"
 
 # --- what to install: prompt scaffold, mcp server, or both ---
 if [ -z "$MODE" ]; then
-  if [ "$ASSUME_YES" -eq 0 ] && [ -r /dev/tty ] && [ -t 1 ]; then
+  if [ "$MCP_AVAILABLE" -eq 1 ] && [ "$ASSUME_YES" -eq 0 ] && [ -r /dev/tty ] && [ -t 1 ]; then
     printf 'Install [1] prompt-only scaffold  [2] MCP server only  [3] both  [1]: ' > /dev/tty
     IFS= read -r ANS_MODE < /dev/tty || ANS_MODE=""
     case "$ANS_MODE" in
