@@ -221,3 +221,13 @@ MUST count each file in its bootstrap load. `validate.sh` MUST accept the folder
 at the root and report a STRAY (non-zero exit) for anything inside it that is not
 a `.md` file, since nothing else is read. The framework ships no `POLICIES/`
 content.
+
+**R35.** Any KNOWLEDGE doc or MEMORY finding MAY carry one `> keywords:` line
+right under its `> summary:` line (the older `**Keywords:**` body line still
+counts). `rebuild-index.sh` MUST append the keywords to that doc's line in
+`MEMORY/INDEX.full.md` or `KNOWLEDGE/INDEX.full.md`, never to the loaded
+`KNOWLEDGE/INDEX.md`, so they cost no session tokens. `memory-find.sh
+--knowledge` MUST search KNOWLEDGE the same way MEMORY is searched. A body-only
+hit MUST print a ready-to-paste `> keywords:` line built from the query.
+`validate.sh` MUST accept the keywords line under the summary and warn when it
+is over 150 characters (`KEYWORDS_MAX`).

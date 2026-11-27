@@ -42,7 +42,7 @@ Here is exactly what that means at session start: a flat, small set loaded in fu
 
 ![What loads at session start: rules, the bootstrap prompt, the three INDEX.md files, and the CORE KNOWLEDGE docs, totaling about 6,500 tokens, next to everything on disk that stays dormant until a summary matches.](images/TLDR_session_load_diagram.svg)
 
-Every file describes itself. Line 1 is the title, line 2 is a one-line `> summary:`. Skills get it free, since their frontmatter `description:` *is* the summary. That line isn't an abstract, it's a trigger: it's the only thing read to decide whether opening the file is worth it. An index entry costs about 30 tokens; the file itself costs 600 to 2,400.
+Every file describes itself. Line 1 is the title, line 2 is a one-line `> summary:`, and an optional line 3 `> keywords:` holds extra search words (error text, IDs, old names) that are searched but never loaded. Skills get it free, since their frontmatter `description:` *is* the summary. That line isn't an abstract, it's a trigger: it's the only thing read to decide whether opening the file is worth it. An index entry costs about 30 tokens; the file itself costs 600 to 2,400.
 
 One file, and the three things generated from its parts: the index entry, the fingerprint, and the staleness check.
 
@@ -70,12 +70,12 @@ Everything the agent does mechanically is a plain `bash` script in `scripts/`. T
 
 | Script | What it does | Why it exists |
 |---|---|---|
-| `rebuild-index.sh` | Regenerates the three `INDEX.md` files (and `MEMORY/INDEX.full.md`) from each file's own `> summary:` line; writes atomically. | The index is derived, so it can never disagree with the disk. |
-| `validate.sh` | Read-only integrity check: missing or multi-line summaries, strays the index can't see, stale indexes, unconfirmed summaries, broken supersede links, `SLUGS.tsv` rows with no folder (and the reverse). Warns (never fails) on over-long summaries (KNOWLEDGE 200 characters, skill descriptions 300, new MEMORY findings 300), on a passed `**Verify-by:**` date, and on a system file that changed without a version bump. Exit code 0 or 1; `--content` skips the freshness check. | Fail loudly at the start of a session instead of building on a broken map. |
+| `rebuild-index.sh` | Regenerates the three `INDEX.md` files (and the search catalogues `MEMORY/INDEX.full.md` and `KNOWLEDGE/INDEX.full.md`, which also carry the `> keywords:` lines) from each file's own `> summary:` line; writes atomically. | The index is derived, so it can never disagree with the disk. |
+| `validate.sh` | Read-only integrity check: missing or multi-line summaries, strays the index can't see, stale indexes, unconfirmed summaries, broken supersede links, `SLUGS.tsv` rows with no folder (and the reverse). Warns (never fails) on over-long summaries (KNOWLEDGE 200 characters, skill descriptions 300, new MEMORY findings 300; `> keywords:` lines 150), on a passed `**Verify-by:**` date, and on a system file that changed without a version bump. Exit code 0 or 1; `--content` skips the freshness check. | Fail loudly at the start of a session instead of building on a broken map. |
 | `confirm-summary.sh` | Records that you re-read a doc and its summary still fits, by updating its body fingerprint. | The one judgment call in the system, made explicit and logged instead of skipped. |
 | `bootstrap.sh` | The whole session start in one call: pull (when the folder is a git clone), rebuild, validate, the list of files to read, open handoffs, then the stats. | One tool call instead of four, and the stats come last so the agent can paste them. |
-| `memory-find.sh` | Keyword search (all words must match, case-insensitive, 15 hits max) over `MEMORY/INDEX.full.md`; when no index line matches it searches the finding bodies (marked `[body]`). Slugs described as `[ARCHIVE]` in `SLUGS.tsv` are skipped unless `--all`. Appends each search to a usage log. | The agent finds the one finding it needs without ever loading the catalogue, even when the summary used other words. |
-| `usage-report.sh` | Summarises that log: search count, top queries, and queries that found nothing; `--today` lists only today's misses and body-only hits. | Zero-hit searches show where the memory has a gap; body-only hits show which summaries need a `**Keywords:**` line. |
+| `memory-find.sh` | Keyword search (all words must match, case-insensitive, 15 hits max) over `MEMORY/INDEX.full.md`; when no index line matches it searches the finding bodies (marked `[body]`). `--knowledge` searches KNOWLEDGE docs instead, through `KNOWLEDGE/INDEX.full.md`. Slugs described as `[ARCHIVE]` in `SLUGS.tsv` are skipped unless `--all`. Appends each search to a usage log. | The agent finds the one finding it needs without ever loading the catalogue, even when the summary used other words. |
+| `usage-report.sh` | Summarises that log: search count, top queries, and queries that found nothing; `--today` lists only today's misses and body-only hits. | Zero-hit searches show where the memory has a gap; body-only hits show which summaries need a `> keywords:` line. |
 | `mark-used.sh` | Adds a domain to a finding's `**Used in:**` line (creating it if absent, never duplicating). | Usage tracking feeds auto-promotion; one command instead of hand-editing. |
 | `bump-version.sh` | Bumps `VERSION`, writes a `CHANGELOG.md` entry, stamps the prompt title and rewrites the system-file manifest (`--restamp`: only the last two). | The system has one version, and the scripts keep it honest (see [Versioning](#versioning)). |
 | `lib.sh` | Sourced, never run: reads every doc's header fields and hashes in a few passes. | `rebuild-index.sh` and `validate.sh` take seconds at hundreds of docs, not minutes. |
@@ -96,7 +96,7 @@ So MEMORY is two-tier:
 - **`MEMORY/INDEX.md`** (loaded every session, about 400 tokens): one line per `MEMORY/<slug>/` folder with its finding count and a one-line scope, plus any `[PROMOTE?]` candidates. It answers "does this memory have an area that could matter?".
 - **`MEMORY/INDEX.full.md`** (never loaded whole): every finding's summary. It exists to be searched. `memory-find.sh timeout llama` returns the matching lines and the agent opens a finding only if its summary fits.
 
-The slug, which is just the folder name, gets its scope from `MEMORY/SLUGS.tsv` (`slug<TAB>description`) because a folder name cannot describe itself. That file is hand-written on purpose: if the rebuild appended rows automatically, two machines sharing the repo would each append the same row and conflict on the next pull. `validate.sh` warns when a folder has no row or a row has no folder, and `set-slug.sh` is the safe way to edit it. Agents that work through the MCP server get the same search as the `find_memory` tool. KNOWLEDGE and SKILLS keep full indexes: they are small, curated, and read by summary match.
+The slug, which is just the folder name, gets its scope from `MEMORY/SLUGS.tsv` (`slug<TAB>description`) because a folder name cannot describe itself. That file is hand-written on purpose: if the rebuild appended rows automatically, two machines sharing the repo would each append the same row and conflict on the next pull. `validate.sh` warns when a folder has no row or a row has no folder, and `set-slug.sh` is the safe way to edit it. KNOWLEDGE and SKILLS keep full indexes: they are small, curated, and read by summary match.
 
 ### What earns `[CORE]`
 
@@ -180,30 +180,12 @@ on validate:
     warn UNCONFIRMED where body_hash drifted past confirmed_summary_hash
 ```
 
-## Viewer
+## AI disclosure
 
-**[`viewer.html`](viewer.html)** is a single-file, drag-and-drop browser and
-editor for a `KNOWLEDGE`/`MEMORY`/`SKILLS` instance: browse, tag
-(`CORE`/`STALE`/`PROMOTE?`), promote MEMORY findings into KNOWLEDGE, and
-filter by state or by what actually loads at session start. No server, no
-dependencies; needs a Chromium-based browser (Chrome/Edge/Vivaldi). See
-**[documents/REQUIREMENTS.md](documents/REQUIREMENTS.md)** for the numbered
-requirements and **[documents/CHANGELOG.md](documents/CHANGELOG.md)** for its
-history.
-
-## MCP Server
-
-**[`mcp_server/`](mcp_server/)** (`agentic_context_mcp`, Python) exposes the
-same `KNOWLEDGE`/`MEMORY`/`SKILLS` instance as MCP tools (reading indexes and
-docs, writing MEMORY findings, rebuilding/validating), so any MCP client
-(Claude Desktop, a custom agent, etc.) can use it directly instead of following
-the bootstrap markdown by hand. Multi-root: one running server answers for any
-`.agentic_context`-style folder you point it at. See
-**[mcp_server/README.md](mcp_server/README.md)** for the tool list and dev
-setup, **[documents/MCP_SERVER_INSTALL.md](documents/MCP_SERVER_INSTALL.md)**
-for the end-user install manual (incl. wiring into Claude Desktop), and
-**[documents/REQUIREMENTS.md](documents/REQUIREMENTS.md)** (#22-30) for its
-requirements.
+Parts of this project were written with the assistance of AI coding agents
+(Claude Code). All changes are reviewed by the maintainer, who is responsible
+for the code. This is the single place that fact is disclosed; it is
+deliberately kept out of the commit history.
 
 ---
 

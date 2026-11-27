@@ -1,6 +1,6 @@
 # MEMORY — Index (slim)
 
-> DERIVED. Rebuilt: 2026-11-18. Run `./scripts/rebuild-index.sh`. System v1.1.0. Full catalogue: `MEMORY/INDEX.full.md` (never load whole).
+> DERIVED. Rebuilt: 2026-11-27. Run `./scripts/rebuild-index.sh`. System v1.3.0. Full catalogue: `MEMORY/INDEX.full.md` (never load whole).
 
 **What this is:** dated findings (gotchas, fixes, quirks) too narrow for KNOWLEDGE. Only this slug map is loaded at init.
 **When to look:** before investigating a symptom, or when the user says "again", "still", "back", "used to work"; and after KNOWLEDGE didn't answer.

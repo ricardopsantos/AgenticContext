@@ -11,7 +11,7 @@ Static ground-truth reference. Load only what a task needs; never bulk-load.
 - `[CORE]` docs are loaded at start by the main prompt; the rest are lazy.
 ## Adding/changing a doc
 1. Drop `.md` into the right family (TitleCase name). New family only when ≥2 docs share a domain. Nesting is allowed — e.g. `project/wallet/WalletSDKArchitecture.md`; the index script recurses.
-2. Line 1 `# Title`; **line 2 `> summary: <one line>`** (prefix `[CORE]` if always-load). The summary is a routing line, at most 200 characters (`validate.sh` warns): what the doc is and when to read it. This index is read in every session, so detail belongs in the body.
+2. Line 1 `# Title`; **line 2 `> summary: <one line>`** (prefix `[CORE]` if always-load); optional **line 3 `> keywords: <term>, <term>`** for words a search would use that the summary lacks. Keywords never enter the loaded index; `scripts/memory-find.sh --knowledge <words>` finds them. The summary is a routing line, at most 200 characters (`validate.sh` warns): what the doc is and when to read it. This index is read in every session, so detail belongs in the body.
    Optional `**Verify-by:** YYYY-MM-DD` on a doc holding volatile facts (ports, hosts, URLs): `validate.sh` warns once the date has passed.
 3. Run `./scripts/rebuild-index.sh`.
 

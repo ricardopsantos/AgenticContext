@@ -60,7 +60,8 @@ mandatory date field, so a debrief uses it like any other finding:
 Run `<root>/scripts/usage-report.sh --today`.
 - **Zero-hit searches:** if this session found the answer, write that finding now.
 - **Body-only hits:** the finding exists but its summary lacked the words you
-  searched; add them to it as a `**Keywords:**` line.
+  searched; add them as a `> keywords:` line under its summary
+  (`memory-find.sh` prints the line ready to paste).
 
 ### 3. Handoff (only when work is unfinished)
 If the session stops with work in progress, write

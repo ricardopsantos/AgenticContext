@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# summary: Searches MEMORY findings by keyword (index lines first, finding bodies when the index has no hit), skipping [ARCHIVE] slugs unless --all; run before investigating a symptom.
-# Usage: memory-find.sh [--all] <keyword> [keyword…]   (case-insensitive, AND semantics, max 15 hits)
-#   --all : also search slugs whose MEMORY/SLUGS.tsv description starts with [ARCHIVE]
+# summary: Searches MEMORY findings (or KNOWLEDGE docs with --knowledge) by keyword: index lines and keywords first, bodies when the index has no hit; skips [ARCHIVE] slugs unless --all; run before investigating a symptom.
+# Usage: memory-find.sh [--all|--knowledge] <keyword> [keyword…]   (case-insensitive, AND semantics, max 15 hits)
+#   --all       : also search slugs whose MEMORY/SLUGS.tsv description starts with [ARCHIVE]
+#   --knowledge : search KNOWLEDGE docs instead (KNOWLEDGE/INDEX.full.md, which carries their keywords; R35)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-FULL="$ROOT/MEMORY/INDEX.full.md"
+TREE=MEMORY
 ALL=0
-[ "${1:-}" = "--all" ] && { ALL=1; shift; }
-[ $# -ge 1 ] || { echo "usage: memory-find.sh [--all] <keyword> [keyword…]" >&2; exit 2; }
+case "${1:-}" in --all) ALL=1; shift ;; --knowledge) TREE=KNOWLEDGE; ALL=1; shift ;; esac
+FULL="$ROOT/$TREE/INDEX.full.md"
+[ $# -ge 1 ] || { echo "usage: memory-find.sh [--all|--knowledge] <keyword> [keyword…]" >&2; exit 2; }
 [ -f "$FULL" ] || { echo "missing $FULL — run scripts/rebuild-index.sh" >&2; exit 2; }
 MAX=15
 # Usage log (R14): one line per search so unused/never-matching queries show up in usage-report.sh.
@@ -43,7 +45,7 @@ fi
 
 # Body fallback (R26): a finding whose summary uses other words is otherwise invisible.
 cd "$ROOT"
-files=$(grep -rliF --include='*.md' -- "$1" MEMORY 2>/dev/null | grep -v '^MEMORY/[^/]*$' || true)
+files=$(grep -rliF --include='*.md' -- "$1" "$TREE" 2>/dev/null | grep -v "^$TREE/[^/]*\$" || true)
 shift_kw=("${@:2}")
 for kw in "${shift_kw[@]+"${shift_kw[@]}"}"; do
   next=""
@@ -60,14 +62,15 @@ if [ "$ALL" -eq 0 ] && [ -n "$ARCH" ]; then
   [ "$bhidden" -gt "$hidden" ] && hidden=$bhidden   # the index hits are (nearly always) the same files
 fi
 if [ -z "$files" ]; then
-  log_use "$@"; echo "no findings match: $*"; archive_note; exit 0
+  log_use "$@"; [ "$TREE" = MEMORY ] && echo "no findings match: $*" || echo "no KNOWLEDGE docs match: $*"; archive_note; exit 0
 fi
 total=$(printf '%s\n' "$files" | wc -l | tr -d ' ')
 HITS=$total; MODE=body; log_use "$@"
-echo "(no index line matches; found in the finding body — its summary may need a **Keywords:** line)"
+echo "(no index line matches; found in the body. If a hit is the right doc, add this as line 3, under its summary:)"
+echo "> keywords: $(printf '%s, ' "$@" | sed 's/, $//')"
 printf '%s\n' "$files" | head -n "$MAX" | while IFS= read -r f; do
   sum=$(grep -m1 '^> summary:' "$f" | sed 's/^> summary: //' || true)
-  printf -- '- `%s` — [body] %s\n' "${f#MEMORY/}" "$(printf '%s' "$sum" | cut -c1-200)"
+  printf -- '- `%s` — [body] %s\n' "${f#"$TREE"/}" "$(printf '%s' "$sum" | cut -c1-200)"
 done
 [ "$total" -le "$MAX" ] || echo "(+$((total-MAX)) more — add keywords to narrow)"
 archive_note

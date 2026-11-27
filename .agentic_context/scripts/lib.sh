@@ -24,6 +24,7 @@ scan_docs () {
     !hasu && /^\*\*Used in:\*\*/        { hasu = 1; used = $0; sub(/^\*\*Used in:\*\* */, "", used) }
     !hass && /^\*\*Superseded-by:\*\*/  { hass = 1; sup = $0;  sub(/^\*\*Superseded-by:\*\* */, "", sup) }
     !hask && /^\*\*Keywords:\*\*/       { hask = 1; kw = $0;   sub(/^\*\*Keywords:\*\* */, "", kw) }
+    !hask && /^> keywords:/             { hask = 1; kw = $0;   sub(/^> keywords: */, "", kw) }   # R35
     !hasv && /^\*\*Verify-by:\*\*/      { hasv = 1; ver = $0;  sub(/^\*\*Verify-by:\*\* */, "", ver) }
     END { emit() }
   ' /dev/null

@@ -1,4 +1,4 @@
-# Session bootstrap (system v1.1.0)
+# Session bootstrap (system v1.3.0)
 
 Root `<root>`: the context folder at or above the working directory —
 identified by **what it contains**, not by its name, so it works whatever the
@@ -57,7 +57,7 @@ lives in `MEMORY/INDEX.full.md`, which you must **never load whole**. Search it
 with `<root>/scripts/memory-find.sh <keyword> [keyword…]` (case-insensitive, all
 keywords must match, max 15 hits, one trimmed line each; falls back to finding
 bodies when no index line matches; slugs described as `[ARCHIVE]` only with
-`--all`); open a finding file only when its summary matches.
+`--all`; `--knowledge` searches KNOWLEDGE docs the same way); open a file only when its summary matches.
 
 **What earns `[CORE]`** (the user's call, never yours): a doc whose absence
 causes a severe failure that has already recurred (a security bug shipped
@@ -93,7 +93,7 @@ you. Names, not contents.
 
 ## 5. Per task
 - Before: if KNOWLEDGE didn't answer, run `memory-find.sh` with 2-3 keywords from the task (tool, host, symptom). **Always** do this before investigating a symptom from scratch, and whenever the user says "again", "still", "back", "used to work": a recurrence is usually already written down, with the fix. Open a finding only on summary match.
-- After: if you learned something that meets `MEMORY/SKILL.md`'s write-criteria, write it, then rebuild the indexes. Don't silently drop a qualifying finding. A new `MEMORY/<slug>/` folder also needs its `SLUGS.tsv` row: `<root>/scripts/set-slug.sh <slug> "<one-line scope>"`.
+- After: if you learned something that meets `MEMORY/SKILL.md`'s write-criteria, write it, then rebuild the indexes. Give it a `> keywords:` line under the summary with the words a later search would use and the summary lacks: exact error text, IDs, ports, old names, synonyms (≤150 chars; searched, never loaded). Don't silently drop a qualifying finding. A new `MEMORY/<slug>/` folder also needs its `SLUGS.tsv` row: `<root>/scripts/set-slug.sh <slug> "<one-line scope>"`.
 - Usage: when a MEMORY finding answers a task, run `<root>/scripts/mark-used.sh <finding> <domain>`, then rebuild.
 - Adding/editing a doc: gate first with `validate.sh --content`, then rebuild. Freshness is a post-rebuild check: a full validate right after writing a file always flags a false STALE.
 - Promote: if `MEMORY/INDEX.md` lists `[PROMOTE?]` entries (hand-flagged or auto), surface them to the user. Only on approval: fold into KNOWLEDGE per `MEMORY/SKILL.md`, mark the finding `[STALE]`. `[CORE]` tagging is always the user's call.

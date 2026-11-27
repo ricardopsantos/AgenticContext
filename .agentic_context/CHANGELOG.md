@@ -2,6 +2,12 @@
 
 System files only (scripts, SKILL.md skeletons, REQUIREMENTS.md, bootstrap prompt). Written by `scripts/bump-version.sh`.
 
+## 1.3.0 — 2026-11-27
+- '> keywords:' line under any summary (KNOWLEDGE and MEMORY), searched via INDEX.full.md, never loaded; memory-find.sh --knowledge; body hits print a ready keywords line; validate warns over 150 chars (R35)
+
+## 1.2.0 — 2026-11-22
+- No framework change (a local install added its own POLICIES/ file; the framework still ships no POLICIES content, R34)
+
 ## 1.1.0 — 2026-11-18
 - POLICIES/ folder: extra rule files the user keeps beside AGENTS.md; bootstrap lists and the prompt reads every POLICIES/*.md; validate accepts the folder and flags non-.md files; stats counts them (R34)
 

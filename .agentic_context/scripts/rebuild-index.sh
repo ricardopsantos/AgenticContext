@@ -22,7 +22,7 @@ tok_of () { # $1 file → estimated context cost to load it (size ÷ 4, ~4 chars
 # Groups files by their parent directory relative to $root. A file at
 # $root/a/b/c.md is bucketed under group "a/b" and listed as "a/b/c.md".
 build_docs () { # $1 root  $2 help line
-  local root=$1 out="${3:-$1/INDEX.md}" stale=""
+  local root=$1 out="${3:-$1/INDEX.md}" nokw="${4:-}" stale=""
   {
     echo "# ${root} — Index"; echo
     echo "> DERIVED from each doc's \`> summary:\` line. Rebuilt: ${DATE}. Run \`./scripts/rebuild-index.sh\`.${STAMP}"
@@ -43,7 +43,7 @@ build_docs () { # $1 root  $2 help line
     # One awk pass reads every doc's header fields (scripts/lib.sh); the loop
     # below then runs on shell builtins only. Files are listed group by group,
     # in glob order, so the rows arrive in the order they are printed.
-    local last="" grp f bytes nsum sum after hasu used rep kw hasv ver t tok n tag line
+    local kwpart last="" grp f bytes nsum sum after hasu used rep kw hasv ver t tok n tag line
     while IFS=$US read -r f bytes nsum sum after hasu used rep kw hasv ver; do
       grp=${f%/*}; grp=${grp#"$root"/}
       [ "$grp" = "$last" ] || { echo; echo "## ${grp}/"; last=$grp; }
@@ -62,7 +62,8 @@ build_docs () { # $1 root  $2 help line
       t=$((bytes / 4))
       if [ "$t" -ge 1000 ]; then tok="$((t/1000)).$(((t%1000)/100))k"; else tok=$t; fi
       # Optional search terms the summary does not contain (R28); memory-find.sh matches the whole line.
-      line="- \`${f#"$root"/}\` — ${tag}${sum:-(no summary line)}${kw:+ [kw: ${kw}]} (~${tok} tok)"
+      kwpart=""; [ -z "$nokw" ] && [ -n "$kw" ] && kwpart=" [kw: ${kw}]"
+      line="- \`${f#"$root"/}\` — ${tag}${sum:-(no summary line)}${kwpart} (~${tok} tok)"
       case "$sum" in
         "[STALE"*) # point at the replacement when the finding names one
                    [ -n "$rep" ] && line+=" -> ${rep}"
@@ -131,7 +132,10 @@ update_cache () {
   mv "$tmp" "$CACHE"; echo "wrote $CACHE"
 }
 
-build_docs KNOWLEDGE "**Load at session start.** Read a doc only on summary match. \`[CORE]\` = always loaded."
+# R35: KNOWLEDGE keywords go only into KNOWLEDGE/INDEX.full.md (searched by memory-find.sh --knowledge,
+# never loaded), so they cost no session tokens. Written first: INDEX.md must stay the newest file.
+build_docs KNOWLEDGE "Search catalogue — **do not load**; search it with \`scripts/memory-find.sh --knowledge <keywords>\`." KNOWLEDGE/INDEX.full.md
+build_docs KNOWLEDGE "**Load at session start.** Read a doc only on summary match. \`[CORE]\` = always loaded." KNOWLEDGE/INDEX.md nokw
 # MEMORY is two-tier: INDEX.full.md (every finding's summary, never loaded at init, searched via
 # scripts/memory-find.sh) and a tiny INDEX.md (slug map + promotion candidates) that is loaded.
 # Full is written first so INDEX.md ends up the newest file (validate.sh freshness check).

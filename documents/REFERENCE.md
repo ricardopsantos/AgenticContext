@@ -282,11 +282,12 @@ in the index, can't be regenerated, and won't update when the doc changes.
   absolute paths to read, lists open handoffs (`MEMORY/handoff/` findings whose
   summary does not start with `[STALE`), then prints `stats.sh` last. Exits
   non-zero when the pull or the validation fails.
-- [`memory-find.sh`](https://github.com/ricardopsantos/AgenticContext/blob/main/.agentic_context/scripts/memory-find.sh) `[--all] <keyword>…`: searches `MEMORY/INDEX.full.md`
+- [`memory-find.sh`](https://github.com/ricardopsantos/AgenticContext/blob/main/.agentic_context/scripts/memory-find.sh) `[--all|--knowledge] <keyword>…`: searches `MEMORY/INDEX.full.md`
   (case-insensitive, every keyword must match, 15 hits max, one trimmed line each).
   When no index line matches it searches the finding files themselves and marks
-  those hits `[body]` (the summary lacked the words: add a `**Keywords:**` line,
-  which the index shows as ` [kw: …]`). Slugs whose `SLUGS.tsv` description starts
+  those hits `[body]` (the summary lacked the words: add a `> keywords:` line,
+  which the index shows as ` [kw: …]`; the output prints one ready to paste). `--knowledge` searches
+  KNOWLEDGE docs instead, through `KNOWLEDGE/INDEX.full.md`, which holds their keywords and is never loaded. Slugs whose `SLUGS.tsv` description starts
   with `[ARCHIVE]` are skipped unless `--all`, and the output says how many hits
   that hid. Each search appends `date<TAB>keywords<TAB>hit-count<TAB>mode` to
   `$AGENTIC_USAGE_LOG` (default `~/.agentic-context-usage.log`); a logging failure
@@ -297,7 +298,6 @@ in the index, can't be regenerated, and won't update when the doc changes.
 - [`mark-used.sh`](https://github.com/ricardopsantos/AgenticContext/blob/main/.agentic_context/scripts/mark-used.sh) `<finding> <domain>`: adds the domain to the finding's
   `**Used in:**` line, creating it when absent (after `Context`/`Discovered`),
   never duplicating (case-insensitive); refuses a file outside `MEMORY/<slug>/`.
-- MCP clients get the same search as the `find_memory` tool (see `mcp_server/README.md`).
 - [`set-slug.sh`](https://github.com/ricardopsantos/AgenticContext/blob/main/.agentic_context/scripts/set-slug.sh) `<slug> "<description>"`: adds or replaces one row of
   `MEMORY/SLUGS.tsv`, sorted and tab-clean; refuses an empty slug, a slug with `/`,
   or one with no folder. Editing the file makes `MEMORY/INDEX.md` stale until the
@@ -455,9 +455,10 @@ to keep in sync.
 ## Adding things
 
 - KNOWLEDGE doc: drop a `.md` in the right family; line 1 `# Title`, line 2
-  `> summary: …` (prefix `[CORE]` if always-load); run `rebuild-index.sh`.
+  `> summary: …` (prefix `[CORE]` if always-load), optional line 3 `> keywords: …`;
+  run `rebuild-index.sh`.
 - MEMORY finding: `MEMORY/<slug>/YYYYMMDD_HHMMSS_<sub-slug>.md` with a
-  `> summary:` line; run `rebuild-index.sh`. Supersede by adding a new file and
+  `> summary:` line and a `> keywords:` line under it; run `rebuild-index.sh`. Supersede by adding a new file and
   marking the old stale in its Caveats; never delete.
 - Skill: `SKILLS/<category>/<name>/SKILL.md` with frontmatter `name:` +
   `description:` (the description is what the index shows; make it

@@ -35,6 +35,7 @@ while IFS=$US read -r f bytes nsum sum after hasu used sup kw hasv ver; do
   esac
   [ -n "${sum// /}" ] || { echo "  EMPTY   summary : $f"; fail=1; continue; }
   # summary must be exactly one line: the line right after it must be blank
+  case "$after" in "> keywords:"*) after="" ;; esac   # R35: keywords may follow the summary
   [ -z "$after" ] || { echo "  MULTILINE summary (line after '> summary:' must be blank): $f"; fail=1; }
 done <<<"$DOCS"
 
@@ -105,6 +106,10 @@ while IFS=$US read -r f bytes nsum sum after hasu used sup kw hasv ver; do
       if [[ "$d" =~ ^[0-9]{8}$ ]] && [ "$d" -lt "$MEMORY_CAP_SINCE" ]; then old_long=$((old_long + 1))
       else echo "  LONG summary (${#sum} chars, max $MEMORY_SUMMARY_MAX): $f"; swarn=1; fi ;;
   esac
+done <<<"$DOCS"
+# R35: keywords are searched, not loaded, but a keyword list that grows into a paragraph stops narrowing a search.
+while IFS=$US read -r f bytes nsum sum after hasu used sup kw hasv ver; do
+  [ "${#kw}" -le "${KEYWORDS_MAX:-150}" ] || { echo "  LONG keywords (${#kw} chars, max ${KEYWORDS_MAX:-150}; keep the words a search would use): $f"; swarn=1; }
 done <<<"$DOCS"
 [ "$old_long" -eq 0 ] || echo "  ($old_long MEMORY findings dated before $MEMORY_CAP_SINCE are over the cap; left as they are)"
 while IFS= read -r line; do

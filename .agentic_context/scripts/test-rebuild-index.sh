@@ -339,6 +339,23 @@ check "R32 mark-used refuses a non-MEMORY file and a domain with a comma" $?
 run2 ./scripts/mark-used.sh slug/20990101_000000_plain.md kmp >/dev/null; run2 ./scripts/rebuild-index.sh >/dev/null 2>&1
 grep 'plain.md' "$w2/MEMORY/INDEX.full.md" | grep -q 'PROMOTE? auto — used in 3 domains'
 check "R32 three marked domains reach the auto-promotion tag (R4)" $?
+# R35 — a "> keywords:" line under the summary: searchable, KNOWLEDGE keywords stay out of the loaded index.
+mkdir -p "$w2/KNOWLEDGE/fam"
+printf '# K\n> summary: how the widget deploy works\n> keywords: zebracode, moved tag\n\nbody\n' > "$w2/KNOWLEDGE/fam/Kw.md"
+printf '# F\n> summary: a plain finding\n> keywords: quokkaword\n\nbody text flamingo\n' > "$w2/MEMORY/slug/20990101_000001_kw.md"
+run2 ./scripts/rebuild-index.sh >/dev/null 2>&1
+! grep -q zebracode "$w2/KNOWLEDGE/INDEX.md" && grep -q 'Kw.md.*\[kw: zebracode' "$w2/KNOWLEDGE/INDEX.full.md"
+check "R35 KNOWLEDGE keywords go to INDEX.full.md only, never the loaded INDEX.md" $?
+run2 ./scripts/memory-find.sh --knowledge zebracode | grep -q 'fam/Kw.md' && run2 ./scripts/memory-find.sh quokkaword | grep -q '20990101_000001_kw.md' \
+  && ! run2 ./scripts/memory-find.sh quokkaword | grep -q '\[body\]'
+check "R35 keywords are found from the index (MEMORY and --knowledge), no body fallback" $?
+out=$(run2 ./scripts/memory-find.sh flamingo); printf '%s\n' "$out" | grep -q '^> keywords: flamingo$'
+check "R35 a body-only hit prints a ready-to-paste keywords line" $?
+out=$(run2 ./scripts/validate.sh --content 2>&1); ! printf '%s' "$out" | grep -q 'MULTILINE.*Kw.md'
+check "R35 a keywords line right under the summary is not a multi-line summary" $?
+printf '# L\n> summary: long kw\n> keywords: %s\n\nb\n' "$(printf 'w%.0s' $(seq 1 160))" > "$w2/KNOWLEDGE/fam/Long.md"
+run2 ./scripts/rebuild-index.sh >/dev/null 2>&1; out=$(run2 ./scripts/validate.sh --content 2>&1); printf '%s\n' "$out" | grep -q 'LONG keywords.*Long.md'
+check "R35 keywords over 150 chars warn" $?
 rm -f "$ulog2"; [ -n "${KEEP:-}" ] && echo "$w2" || rm -rf "$w2"
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"

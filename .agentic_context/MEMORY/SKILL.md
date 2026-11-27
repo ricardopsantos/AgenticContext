@@ -16,18 +16,18 @@ Non-obvious + will recur + too narrow for KNOWLEDGE. Never: official-doc facts, 
 ```
 # <Topic>
 > summary: <finding + why it matters>
+> keywords: <term>, <term>, "<exact error text>"   (words a future search would use that the summary lacks)
 
 **Discovered:** YYYY-MM-DD
 **Context:** <where found>
 **Used in:** <domain>, <domain>
-**Keywords:** <term>, <term>   (optional: words a future search would use that the summary lacks)
 **Verify-by:** YYYY-MM-DD      (optional: a volatile fact, e.g. a port, host or URL, to re-check by then)
 **Superseded-by:** <file>      (only on a [STALE — superseded…] finding)
 **Corrects:** <file>           (only on the replacing finding: back-link)
 
 ## Finding / ## Details / ## Caveats
 ```
-Summary: one line, at most 300 characters (`validate.sh` warns); detail goes in the body. `Used in` starts absent; add it the first time the finding answers a task. `Superseded-by` / `Corrects` are optional and appear only on a supersede pair (below). Once `Verify-by` has passed, `validate.sh` warns until you re-check the fact and move the date, or mark the finding `[STALE`. A `[body]` search hit means the summary missed the words used: add them as `Keywords`.
+Summary: one line, at most 300 characters (`validate.sh` warns); detail goes in the body. `Used in` starts absent; add it the first time the finding answers a task. `Superseded-by` / `Corrects` are optional and appear only on a supersede pair (below). Once `Verify-by` has passed, `validate.sh` warns until you re-check the fact and move the date, or mark the finding `[STALE`. A `[body]` search hit means the summary missed the words used: add them to its `> keywords:` line (the search prints one ready to paste). Keywords are searched, never loaded; keep them ≤150 characters. Older findings may still use a `**Keywords:**` body line; it works the same.
 After writing/superseding, run `./scripts/rebuild-index.sh`.
 ## Usage tracking (feeds promotion)
 - When a finding answers a task, run `scripts/mark-used.sh <finding> <domain>` (it creates or extends the `**Used in:**` line, never duplicating; prefer an existing SKILLS category or MEMORY group name so domains stay consistent), then rebuild.
